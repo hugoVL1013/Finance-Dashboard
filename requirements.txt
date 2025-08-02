@@ -16,7 +16,8 @@ scipy>=1.11.0
 statsmodels>=0.14.0
 
 # Deep Learning (Optional - TensorFlow)
-tensorflow>=2.13.0
+# tensorflow>=2.13.0  # Commented out - not compatible with Python 3.13+
+# Your app gracefully handles missing TensorFlow with try/except
 
 # HTTP Requests and Data Processing
 requests>=2.31.0
