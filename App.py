@@ -1,10 +1,10 @@
-# Finance Dashboard - Refactored for Efficiency
+# Finance Dashboard
 
 import yfinance as yf
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objs as go
-from datetime import date, timedelta
+from datetime import date
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -23,6 +23,7 @@ import time
 from scipy.stats import skew, kurtosis
 import warnings
 warnings.filterwarnings('ignore')
+from datetime import timedelta
 from sklearn.cluster import KMeans
 from scipy.signal import find_peaks
 
@@ -38,61 +39,31 @@ except ImportError:
     DEEP_LEARNING_AVAILABLE = False
     print("⚠️ TensorFlow not available. Install with: pip install tensorflow")
 
-# ===============================
-# CONFIGURATION AND CONSTANTS
-# ===============================
 
-# Page configuration
+# Page title and config
 st.set_page_config(page_title="📊 Finance Dashboard", layout="wide")
 st.title(":bar_chart: Finance Dashboard")
 
-# Constants
-RISK_FREE_RATE = 0.025  # 2.5% annual
-TRADING_DAYS_PER_YEAR = 252
-WEATHER_API_KEY = "PH3EAFWDB2MZU6NLGAHHHKRTX"
-CACHE_DIR = "weather_cache"
+# Sidebar navigation
+st.sidebar.title(":pushpin: Navigation")
+page = st.sidebar.radio("Go to", [":chart_with_upwards_trend: Stock Dashboard", ":bar_chart: Stock Correlation"])
 
-# ===============================
-# CORE DATA LOADING FUNCTIONS
-# ===============================
-
+# Shared function to load data
 @st.cache_data(ttl=600)
-def load_financial_data(ticker_symbol: str, start_date: date, end_date: date) -> pd.DataFrame:
-    """Load financial data from Yahoo Finance with caching and error handling."""
-    try:
-        ticker = yf.Ticker(ticker_symbol)
-        data = ticker.history(start=start_date, end=end_date)
-        if data.empty:
-            return None
-        data = data.reset_index()
-        data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
-        return data
-    except Exception as e:
-        st.error(f"Error loading data for {ticker_symbol}: {str(e)}")
+def load_data(ticker_symbol, start, end):
+    ticker = yf.Ticker(ticker_symbol)
+    data = ticker.history(start=start, end=end)
+    if data.empty:
         return None
+    data = data.reset_index()
+    data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
+    return data
 
-def validate_date_inputs(start_date: date, end_date: date) -> bool:
-    """Validate that start date is before end date."""
-    if start_date >= end_date:
-        st.error("Start date must be before end date!")
-        return False
-    return True
-
-def calculate_financial_returns(prices: pd.Series, return_type: str = 'simple') -> pd.Series:
-    """Calculate returns from price series with specified method."""
-    if return_type == 'log':
-        return np.log(prices / prices.shift(1))
-    else:  # simple
-        return prices.pct_change()
-
-# ===============================
-# WEATHER DATA MANAGEMENT
-# ===============================
-
-@st.cache_data(ttl=3600)
-def test_weather_api_connectivity() -> tuple[bool, str]:
-    """Test weather API connectivity with comprehensive error handling."""
-    test_url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/London,UK/2024-01-01/2024-01-02?unitGroup=metric&key={WEATHER_API_KEY}&include=days"
+# Enhanced weather data loading with caching and batch processing
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def test_weather_api():
+    """Quick test to see if the VisualCrossing API is responding"""
+    test_url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/London,UK/2024-01-01/2024-01-02?unitGroup=metric&key=PH3EAFWDB2MZU6NLGAHHHKRTX&include=days"
     try:
         resp = requests.get(test_url, timeout=2)
         resp.raise_for_status()
@@ -101,71 +72,105 @@ def test_weather_api_connectivity() -> tuple[bool, str]:
     except requests.exceptions.Timeout:
         return False, "API timeout (service may be slow)"
     except requests.exceptions.HTTPError as e:
-        error_codes = {
-            429: "Rate limited - API quota exceeded",
-            401: "Authentication failed - check API key"
-        }
-        return False, error_codes.get(e.response.status_code, f"HTTP {e.response.status_code} error")
+        if e.response.status_code == 429:
+            return False, "Rate limited - API quota exceeded"
+        elif e.response.status_code == 401:
+            return False, "Authentication failed - check API key"
+        else:
+            return False, f"HTTP {e.response.status_code} error"
     except Exception as e:
         return False, f"Error: {str(e)[:50]}"
 
-def manage_weather_cache(cache_key: str, data: pd.Series = None, action: str = 'load') -> pd.Series:
-    """Unified cache management for weather data."""
-    if not os.path.exists(CACHE_DIR):
-        os.makedirs(CACHE_DIR)
-    
-    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.pkl")
-    
-    if action == 'load':
-        if os.path.exists(cache_file):
-            try:
-                with open(cache_file, 'rb') as f:
-                    return pickle.load(f)
-            except:
-                return None
-        return None
-    
-    elif action == 'save' and data is not None:
-        try:
-            with open(cache_file, 'wb') as f:
-                pickle.dump(data, f)
-        except Exception as e:
-            st.warning(f"Could not save to cache: {e}")
-    
-    elif action == 'clear':
-        if os.path.exists(CACHE_DIR):
-            shutil.rmtree(CACHE_DIR)
-            return True
-        return False
+# Enhanced weather data loading with persistent file caching
+import os
+import pickle
+import hashlib
 
-def generate_cache_key(region: str, data_type: str, start_date: date, end_date: date) -> str:
-    """Generate unique cache key for weather data."""
+def get_cache_key(region, data_type, start_date, end_date):
+    """Generate a unique cache key for the parameters"""
     key_string = f"{region}_{data_type}_{start_date}_{end_date}"
     return hashlib.md5(key_string.encode()).hexdigest()
 
-def get_cache_statistics() -> str:
-    """Get comprehensive cache statistics."""
-    if not os.path.exists(CACHE_DIR):
+def load_from_cache(cache_key):
+    """Load data from cache file if it exists"""
+    cache_dir = "weather_cache"
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    
+    cache_file = os.path.join(cache_dir, f"{cache_key}.pkl")
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'rb') as f:
+                return pickle.load(f)
+        except:
+            return None
+    return None
+
+def save_to_cache(cache_key, data):
+    """Save data to cache file"""
+    cache_dir = "weather_cache"
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+    
+    cache_file = os.path.join(cache_dir, f"{cache_key}.pkl")
+    try:
+        with open(cache_file, 'wb') as f:
+            pickle.dump(data, f)
+    except Exception as e:
+        st.warning(f"Could not save to cache: {e}")
+
+def clear_weather_cache():
+    """Clear all cached weather data"""
+    cache_dir = "weather_cache"
+    if os.path.exists(cache_dir):
+        shutil.rmtree(cache_dir)
+        st.success("🗑️ Weather cache cleared! Next API calls will fetch fresh data.")
+    else:
+        st.info("No cache to clear.")
+
+def get_cache_info():
+    """Get information about cached files"""
+    cache_dir = "weather_cache"
+    if not os.path.exists(cache_dir):
         return "No cache directory found."
     
-    cache_files = [f for f in os.listdir(CACHE_DIR) if f.endswith('.pkl')]
+    cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.pkl')]
     if not cache_files:
         return "Cache directory is empty."
     
-    total_size = sum(os.path.getsize(os.path.join(CACHE_DIR, f)) for f in cache_files)
+    total_size = sum(os.path.getsize(os.path.join(cache_dir, f)) for f in cache_files)
     return f"📊 Cache: {len(cache_files)} files, {total_size/1024:.1f} KB total"
 
-def get_weather_city_mapping() -> dict:
-    """Get standardized mapping of regions to representative cities."""
-    return {
-        'EU': ["Paris,FR", "Berlin,DE", "Rome,IT"],
-        'US': ["New York,NY", "Chicago,IL", "Los Angeles,CA"],
-        'Colombia': ["Bogota,CO", "Medellin,CO"]
+def load_weather_data(region, data_type, start_date, end_date):
+    """
+    Load weather data for a region with persistent file caching
+    Data is cached forever until manually cleared
+    
+    Args:
+        region: 'EU', 'US', or 'Colombia'
+        data_type: 'temperature' or 'rainfall'
+        start_date: Start date
+        end_date: End date
+    
+    Returns:
+        pandas.Series with daily averages
+    """
+    # Check persistent cache first
+    cache_key = get_cache_key(region, data_type, start_date, end_date)
+    cached_data = load_from_cache(cache_key)
+    
+    if cached_data is not None:
+        st.info(f"📁 Using cached {region} {data_type} data (saved API call!)")
+        return cached_data
+    
+    # If not in cache, make API call
+    st.info(f"🌐 Fetching fresh {region} {data_type} data from API...")
+    
+    city_maps = {
+        'EU': ["Paris,FR", "Berlin,DE", "Rome,IT"],  # Reduced cities for faster loading
+        'US': ["New York,NY", "Chicago,IL", "Los Angeles,CA"],  # Reduced cities for faster loading
+        'Colombia': ["Bogota,CO", "Medellin,CO"]  # Reduced cities for faster loading
     }
-
-def fetch_weather_data_from_api(region: str, data_type: str, start_date: date, end_date: date) -> pd.Series:
-    """Fetch weather data from API with robust error handling and rate limiting."""
-    city_maps = get_weather_city_mapping()
     
     if region not in city_maps:
         return pd.Series()
@@ -176,23 +181,26 @@ def fetch_weather_data_from_api(region: str, data_type: str, start_date: date, e
     successful_calls = 0
     
     for i, city in enumerate(cities):
-        url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{city}/{start_date}/{end_date}?unitGroup=metric&key={WEATHER_API_KEY}&include=days"
+        url = f"https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/{city}/{start_date}/{end_date}?unitGroup=metric&key=PH3EAFWDB2MZU6NLGAHHHKRTX&include=days"
         
         try:
+            # Add small delay to avoid rate limiting
             if i > 0:
-                time.sleep(1.0)  # Rate limiting
+                time.sleep(1.0)  # Increased delay to 1 second
             
+            # Give the API more time - 15 seconds for slower responses
             resp = requests.get(url, timeout=15)
             resp.raise_for_status()
             weather_data = resp.json()
             
+            # Check if API returned valid data
             if 'days' not in weather_data or len(weather_data.get('days', [])) == 0:
                 continue
             
             if data_type == 'temperature':
                 city_values = [day.get('temp', np.nan) for day in weather_data.get('days', [])]
             else:  # rainfall
-                city_values = [day.get('precip', 0) or 0 for day in weather_data.get('days', [])]
+                city_values = [day.get('precip', 0) or 0 for day in weather_data.get('days', [])]  # Handle None as 0
             
             all_data.append(city_values)
             successful_calls += 1
@@ -200,6 +208,7 @@ def fetch_weather_data_from_api(region: str, data_type: str, start_date: date, e
             if dates is None:
                 dates = [day.get('datetime') for day in weather_data.get('days', [])]
             
+            # If we get at least one successful call, we can work with that
             if successful_calls >= 1:
                 break  # Don't wait for all cities if one works
                 
@@ -213,6 +222,9 @@ def fetch_weather_data_from_api(region: str, data_type: str, start_date: date, e
             else:
                 st.warning(f"🌐 HTTP {e.response.status_code} error for {region} weather data")
             continue
+        except requests.exceptions.RequestException as e:
+            st.warning(f"🌐 Network error for {region} weather data: {str(e)[:50]}...")
+            continue
         except Exception as e:
             st.warning(f"❌ Error loading {region} weather data: {str(e)[:50]}...")
             continue
@@ -220,7 +232,7 @@ def fetch_weather_data_from_api(region: str, data_type: str, start_date: date, e
     if not all_data or not dates:
         return pd.Series()
     
-    # Calculate regional average
+    # Calculate regional average (even with just one city if that's all we got)
     data_array = np.array(all_data)
     regional_avg = np.nanmean(data_array, axis=0)
     
@@ -228,845 +240,49 @@ def fetch_weather_data_from_api(region: str, data_type: str, start_date: date, e
     date_index = pd.to_datetime(dates)
     result_series = pd.Series(regional_avg, index=date_index)
     
+    # Save to persistent cache
+    save_to_cache(cache_key, result_series)
+    
+    # Show success message with the region and data type
     st.success(f"✅ Successfully loaded {region} {data_type} data from {successful_calls} city/cities (cached for future use)")
     
     return result_series
 
-def load_weather_data(region: str, data_type: str, start_date: date, end_date: date) -> pd.Series:
-    """Load weather data with intelligent caching and fallback mechanisms."""
-    # Check cache first
-    cache_key = generate_cache_key(region, data_type, start_date, end_date)
-    cached_data = manage_weather_cache(cache_key, action='load')
-    
-    if cached_data is not None:
-        st.info(f"📁 Using cached {region} {data_type} data (saved API call!)")
-        return cached_data
-    
-    # Fetch from API
-    st.info(f"🌐 Fetching fresh {region} {data_type} data from API...")
-    result_series = fetch_weather_data_from_api(region, data_type, start_date, end_date)
-    
-    # Save to cache if successful
-    if not result_series.empty:
-        manage_weather_cache(cache_key, result_series, action='save')
-    
-    return result_series
-
-def generate_synthetic_weather_data(region: str, data_type: str, start_date: date, end_date: date) -> pd.Series:
-    """Generate realistic synthetic weather data as API fallback."""
-    cache_key = generate_cache_key(f"{region}_synthetic", data_type, start_date, end_date)
-    cached_data = manage_weather_cache(cache_key, action='load')
+# Alternative data sources for when VisualCrossing fails
+def load_alternative_weather_data(region, data_type, start_date, end_date):
+    """
+    Fallback to synthetic or alternative data sources with persistent caching
+    """
+    # Check cache first for synthetic data too
+    cache_key = get_cache_key(f"{region}_synthetic", data_type, start_date, end_date)
+    cached_data = load_from_cache(cache_key)
     
     if cached_data is not None:
         return cached_data
     
-    # Generate synthetic data
+    # Generate synthetic weather data as fallback
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
     
     if data_type == 'temperature':
-        # Seasonal temperature pattern with regional variation
+        # Seasonal temperature pattern
         day_of_year = date_range.dayofyear
-        base_temp = {'EU': 10, 'US': 12, 'Colombia': 22}.get(region, 15)
-        seasonal_variation = {'EU': 15, 'US': 18, 'Colombia': 5}.get(region, 10)
-        
-        seasonal_temp = base_temp + seasonal_variation * np.sin(2 * np.pi * (day_of_year - 80) / 365)
+        seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (day_of_year - 80) / 365)
         noise = np.random.normal(0, 3, len(date_range))
         synthetic_data = seasonal_temp + noise
     else:  # rainfall
-        # Regional rainfall patterns
-        base_rainfall = {'EU': 2, 'US': 2.5, 'Colombia': 4}.get(region, 2)
+        # Random rainfall with seasonal variation
         seasonal_factor = 1 + 0.3 * np.sin(2 * np.pi * date_range.dayofyear / 365)
-        synthetic_data = np.random.exponential(base_rainfall, len(date_range)) * seasonal_factor
+        synthetic_data = np.random.exponential(2, len(date_range)) * seasonal_factor
     
-    # Ensure timezone-naive
+    # Ensure the date_range is timezone-naive
     date_range = date_range.tz_localize(None) if date_range.tz is not None else date_range
     
     result_series = pd.Series(synthetic_data, index=date_range)
     
-    # Cache synthetic data
-    manage_weather_cache(cache_key, result_series, action='save')
+    # Cache the synthetic data too
+    save_to_cache(cache_key, result_series)
     
     return result_series
-
-# ===============================
-# CUSTOM VARIABLES MANAGEMENT
-# ===============================
-
-def validate_custom_ticker(ticker: str, start_date: date, end_date: date) -> tuple[bool, str, pd.DataFrame]:
-    """Validate custom ticker with comprehensive testing."""
-    try:
-        test_data = load_financial_data(ticker, start_date, end_date)
-        if test_data is not None and not test_data.empty:
-            return True, f"✅ {ticker} added successfully! Found {len(test_data)} data points.", test_data
-        else:
-            return False, f"❌ Could not find data for {ticker}. Please check the symbol and try again.", None
-    except Exception as e:
-        return False, f"❌ Error testing {ticker}: {str(e)}", None
-
-def manage_session_variables(action: str, ticker: str = "") -> list:
-    """Centralized session state management for custom variables."""
-    if action == 'add' and ticker:
-        custom_var_name = f"{ticker} (Custom)"
-        if 'custom_vars' not in st.session_state:
-            st.session_state.custom_vars = []
-        if custom_var_name not in st.session_state.custom_vars:
-            st.session_state.custom_vars.append(custom_var_name)
-    
-    elif action == 'clear':
-        if 'custom_vars' in st.session_state:
-            st.session_state.custom_vars = []
-            st.success("Custom variables cleared! Page will refresh.")
-            st.rerun()
-    
-    elif action == 'get':
-        return st.session_state.get('custom_vars', [])
-    
-    return st.session_state.get('custom_vars', [])
-
-def get_comprehensive_variable_list() -> list:
-    """Get complete list of available variables including custom ones."""
-    base_variables = [
-        "SPY (S&P 500 ETF)",
-        "GLD (Gold ETF)",
-        "USO (Oil ETF)",
-        "UNG (Natural Gas ETF)",
-        "DBC (Commodities ETF)",
-        "TLT (20+ Year Treasury Bond ETF)",
-        "IEF (10 Year Treasury Bond ETF)",
-        "VIX (Volatility Index)",
-        "Global Oil Price (Brent)",
-        "Crude Oil Futures (CL=F)",
-        "USD Index (DXY)",
-        "Bitcoin Price (BTC-USD)",
-        "Coffee Futures (KC=F)",
-        "EU Daily Rainfall Avg (Historical)",
-        "US Daily Rainfall Avg (Historical)",
-        "EU Daily Temperature Avg (Historical)",
-        "US Daily Temperature Avg (Historical)",
-        "Colombia Average Daily Temperature (Historical)",
-        "Colombia Average Daily Rainfall (Historical)",    
-    ]
-    
-    # Add custom variables from session state
-    custom_vars = manage_session_variables('get')
-    for custom_var in custom_vars:
-        if custom_var not in base_variables:
-            base_variables.append(custom_var)
-    
-    return base_variables
-
-def get_ticker_symbol_mapping() -> dict:
-    """Get standardized mapping of variable names to ticker symbols."""
-    return {
-        "SPY (S&P 500 ETF)": "SPY",
-        "GLD (Gold ETF)": "GLD",
-        "USO (Oil ETF)": "USO",
-        "UNG (Natural Gas ETF)": "UNG",
-        "DBC (Commodities ETF)": "DBC",
-        "TLT (20+ Year Treasury Bond ETF)": "TLT",
-        "IEF (10 Year Treasury Bond ETF)": "IEF",
-        "VIX (Volatility Index)": "^VIX",
-        "Global Oil Price (Brent)": "BZ=F",
-        "Crude Oil Futures (CL=F)": "CL=F",
-        "USD Index (DXY)": "DX-Y.NYB",
-        "Bitcoin Price (BTC-USD)": "BTC-USD",
-        "Coffee Futures (KC=F)": "KC=F"
-    }
-
-# ===============================
-# STATISTICAL ANALYSIS FUNCTIONS
-# ===============================
-
-def calculate_comprehensive_risk_metrics(returns: pd.Series) -> dict:
-    """Calculate comprehensive risk and performance metrics."""
-    excess_returns = returns - RISK_FREE_RATE / TRADING_DAYS_PER_YEAR
-    
-    return {
-        'sharpe_ratio': excess_returns.mean() / excess_returns.std() * np.sqrt(TRADING_DAYS_PER_YEAR),
-        'sortino_ratio': calculate_sortino_ratio(returns),
-        'daily_volatility': returns.std(),
-        'annual_volatility': returns.std() * np.sqrt(TRADING_DAYS_PER_YEAR),
-        'skewness': skew(returns.dropna()),
-        'kurtosis': kurtosis(returns.dropna()),
-        'var_95': returns.quantile(0.05),
-        'var_99': returns.quantile(0.01),
-        'max_drawdown': calculate_maximum_drawdown_from_returns(returns)
-    }
-
-def calculate_sortino_ratio(returns: pd.Series, risk_free_rate: float = RISK_FREE_RATE) -> float:
-    """Calculate Sortino ratio focusing on downside risk."""
-    excess_returns = returns - risk_free_rate / TRADING_DAYS_PER_YEAR
-    downside_returns = excess_returns[excess_returns < 0]
-    downside_std = downside_returns.std()
-    
-    if downside_std == 0:
-        return np.inf
-    
-    return excess_returns.mean() / downside_std * np.sqrt(TRADING_DAYS_PER_YEAR)
-
-def calculate_maximum_drawdown_from_returns(returns: pd.Series) -> float:
-    """Calculate maximum drawdown from returns series."""
-    cumulative = (1 + returns).cumprod()
-    rolling_max = cumulative.expanding().max()
-    drawdown = (cumulative - rolling_max) / rolling_max
-    return drawdown.min() * 100
-
-# ===============================
-# FAMA-FRENCH FACTOR ANALYSIS
-# ===============================
-
-def download_fama_french_factors() -> pd.DataFrame:
-    """Download Fama-French 3-factor data with fallback to synthetic data."""
-    try:
-        import pandas_datareader.data as web
-        ff_factors = web.DataReader('F-F_Research_Data_Factors_daily', 'famafrench', start='2010-01-01')[0]
-        ff_factors.index = pd.to_datetime(ff_factors.index, format='%Y%m%d')
-        ff_factors = ff_factors / 100  # Convert from percentage
-        return ff_factors
-    except:
-        # Generate realistic synthetic Fama-French factors
-        date_range = pd.date_range(start='2010-01-01', end=date.today(), freq='D')
-        synthetic_ff = pd.DataFrame({
-            'Mkt-RF': np.random.normal(0.0004, 0.01, len(date_range)),
-            'SMB': np.random.normal(0.0001, 0.005, len(date_range)),
-            'HML': np.random.normal(0.0001, 0.005, len(date_range)),
-            'RF': np.full(len(date_range), RISK_FREE_RATE / TRADING_DAYS_PER_YEAR)
-        }, index=date_range)
-        return synthetic_ff
-
-def perform_fama_french_regression(stock_returns: pd.Series, ff_factors: pd.DataFrame) -> dict:
-    """Perform comprehensive Fama-French 3-factor regression analysis."""
-    # Align data
-    common_dates = stock_returns.index.intersection(ff_factors.index)
-    if len(common_dates) < 30:  # Need minimum data points
-        return {'error': 'Insufficient data for Fama-French analysis'}
-    
-    stock_data = stock_returns.loc[common_dates]
-    factor_data = ff_factors.loc[common_dates]
-    
-    # Calculate excess returns
-    excess_returns = stock_data - factor_data['RF']
-    
-    # Prepare regression data
-    X = factor_data[['Mkt-RF', 'SMB', 'HML']].values
-    y = excess_returns.values
-    
-    # Remove any NaN values
-    mask = ~(np.isnan(X).any(axis=1) | np.isnan(y))
-    X = X[mask]
-    y = y[mask]
-    
-    if len(X) < 10:  # Need minimum data points
-        return {'error': 'Insufficient data for regression analysis'}
-    
-    # Perform regression
-    model = LinearRegression()
-    model.fit(X, y)
-    
-    # Calculate R-squared and additional metrics
-    r_squared = model.score(X, y)
-    
-    return {
-        'alpha': model.intercept_,
-        'beta_market': model.coef_[0],
-        'beta_size': model.coef_[1],
-        'beta_value': model.coef_[2],
-        'r_squared': r_squared,
-        'alpha_annualized': model.intercept_ * TRADING_DAYS_PER_YEAR,
-        'tracking_error': np.std(y - model.predict(X)) * np.sqrt(TRADING_DAYS_PER_YEAR),
-        'information_ratio': (model.intercept_ * TRADING_DAYS_PER_YEAR) / (np.std(y - model.predict(X)) * np.sqrt(TRADING_DAYS_PER_YEAR))
-    }
-
-# ===============================
-# GRANGER CAUSALITY ANALYSIS
-# ===============================
-
-def perform_comprehensive_granger_causality_test(x: pd.Series, y: pd.Series, max_lags: int = 10) -> dict:
-    """Perform comprehensive Granger causality test with enhanced analysis."""
-    try:
-        from statsmodels.tsa.stattools import grangercausalitytests
-        
-        # Combine series
-        data = pd.concat([x, y], axis=1).dropna()
-        
-        if len(data) < max_lags * 2:
-            return {'error': 'Insufficient data for Granger causality test'}
-        
-        # Test if x Granger-causes y
-        gc_x_to_y = grangercausalitytests(data.iloc[:, [1, 0]], maxlag=max_lags, verbose=False)
-        
-        # Test if y Granger-causes x
-        gc_y_to_x = grangercausalitytests(data.iloc[:, [0, 1]], maxlag=max_lags, verbose=False)
-        
-        # Extract p-values for each lag
-        p_values_x_to_y = [gc_x_to_y[i+1][0]['ssr_ftest'][1] for i in range(max_lags)]
-        p_values_y_to_x = [gc_y_to_x[i+1][0]['ssr_ftest'][1] for i in range(max_lags)]
-        
-        return {
-            'x_to_y_p_values': p_values_x_to_y,
-            'y_to_x_p_values': p_values_y_to_x,
-            'best_lag_x_to_y': np.argmin(p_values_x_to_y) + 1,
-            'best_lag_y_to_x': np.argmin(p_values_y_to_x) + 1,
-            'min_p_value_x_to_y': min(p_values_x_to_y),
-            'min_p_value_y_to_x': min(p_values_y_to_x),
-            'significant_x_to_y': min(p_values_x_to_y) < 0.05,
-            'significant_y_to_x': min(p_values_y_to_x) < 0.05
-        }
-    except Exception as e:
-        return {'error': f'Granger causality test failed: {str(e)}'}
-
-# ===============================
-# NAVIGATION AND UI
-# ===============================
-
-def initialize_app_navigation():
-    """Initialize application navigation and sidebar."""
-    st.sidebar.title(":pushpin: Navigation")
-    return st.sidebar.radio("Go to", [":chart_with_upwards_trend: Stock Dashboard", ":bar_chart: Stock Correlation"])
-
-# Load data function alias for backward compatibility
-load_data = load_financial_data
-
-# ===============================
-# MAIN APPLICATION LOGIC
-# ===============================
-
-# Initialize navigation
-page = initialize_app_navigation()
-
-if page == ":chart_with_upwards_trend: Stock Dashboard":
-    # ===============================
-    # STOCK DASHBOARD PAGE
-    # ===============================
-    
-    st.header(":chart_with_upwards_trend: Stock Dashboard")
-    
-    # Display risk disclaimer
-    st.warning("""
-    ⚠️ **Risk Disclaimer**: This dashboard is for educational and informational purposes only. 
-    It should not be considered as financial advice. Past performance does not guarantee future results. 
-    Always consult with a qualified financial advisor before making investment decisions.
-    """)
-    
-    # Sidebar inputs for stock dashboard
-    st.sidebar.subheader("📊 Stock Inputs")
-    ticker = st.sidebar.text_input("Enter ticker symbol", value="AAPL").upper()
-    start_date = st.sidebar.date_input("Start date", value=date(2023, 1, 1))
-    end_date = st.sidebar.date_input("End date", value=date.today())
-    
-    # Validate dates
-    if not validate_date_inputs(start_date, end_date):
-        st.stop()
-    
-    # Load and display main stock data
-    if ticker:
-        with st.spinner(f"Loading data for {ticker}..."):
-            stock_data = load_financial_data(ticker, start_date, end_date)
-        
-        if stock_data is not None and not stock_data.empty:
-            # Main stock information display
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                current_price = stock_data['Close'].iloc[-1]
-                st.metric("Current Price", f"${current_price:.2f}")
-            
-            with col2:
-                price_change = stock_data['Close'].iloc[-1] - stock_data['Close'].iloc[-2] if len(stock_data) > 1 else 0
-                price_change_pct = (price_change / stock_data['Close'].iloc[-2]) * 100 if len(stock_data) > 1 else 0
-                st.metric("Price Change", f"${price_change:.2f}", f"{price_change_pct:.2f}%")
-            
-            with col3:
-                returns = calculate_financial_returns(stock_data['Close'])
-                volatility = returns.std() * np.sqrt(TRADING_DAYS_PER_YEAR) * 100
-                st.metric("Annual Volatility", f"{volatility:.2f}%")
-            
-            with col4:
-                risk_metrics = calculate_comprehensive_risk_metrics(returns)
-                st.metric("Sharpe Ratio", f"{risk_metrics['sharpe_ratio']:.2f}")
-            
-            # Main price chart
-            st.subheader("📈 Price Chart")
-            fig_price = go.Figure()
-            fig_price.add_trace(go.Scatter(
-                x=stock_data['Date'],
-                y=stock_data['Close'],
-                mode='lines',
-                name='Price',
-                line=dict(color='#1f77b4', width=2)
-            ))
-            fig_price.update_layout(
-                title=f"{ticker} Stock Price",
-                xaxis_title="Date",
-                yaxis_title="Price ($)",
-                template='plotly_white',
-                hovermode='x unified'
-            )
-            st.plotly_chart(fig_price, use_container_width=True)
-            
-            # Technical analysis section
-            st.subheader("📊 Technical Analysis")
-            
-            # Calculate technical indicators
-            stock_data['SMA_20'] = stock_data['Close'].rolling(window=20).mean()
-            stock_data['SMA_50'] = stock_data['Close'].rolling(window=50).mean()
-            stock_data['EMA_12'] = stock_data['Close'].ewm(span=12).mean()
-            stock_data['EMA_26'] = stock_data['Close'].ewm(span=26).mean()
-            
-            # Technical indicators chart
-            fig_tech = go.Figure()
-            fig_tech.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Close'], mode='lines', name='Price'))
-            fig_tech.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='SMA 20'))
-            fig_tech.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_50'], mode='lines', name='SMA 50'))
-            fig_tech.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['EMA_12'], mode='lines', name='EMA 12'))
-            fig_tech.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['EMA_26'], mode='lines', name='EMA 26'))
-            
-            fig_tech.update_layout(
-                title=f"{ticker} Technical Indicators",
-                xaxis_title="Date",
-                yaxis_title="Price ($)",
-                template='plotly_white',
-                hovermode='x unified'
-            )
-            st.plotly_chart(fig_tech, use_container_width=True)
-            
-            # Risk metrics display
-            st.subheader("⚖️ Risk Analysis")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write("**Performance Metrics:**")
-                st.write(f"• Daily Volatility: {risk_metrics['daily_volatility']*100:.2f}%")
-                st.write(f"• Annual Volatility: {risk_metrics['annual_volatility']*100:.2f}%")
-                st.write(f"• Sharpe Ratio: {risk_metrics['sharpe_ratio']:.3f}")
-                st.write(f"• Sortino Ratio: {risk_metrics['sortino_ratio']:.3f}")
-            
-            with col2:
-                st.write("**Risk Metrics:**")
-                st.write(f"• VaR (95%): {risk_metrics['var_95']*100:.2f}%")
-                st.write(f"• VaR (99%): {risk_metrics['var_99']*100:.2f}%")
-                st.write(f"• Max Drawdown: {risk_metrics['max_drawdown']:.2f}%")
-                st.write(f"• Skewness: {risk_metrics['skewness']:.3f}")
-                st.write(f"• Kurtosis: {risk_metrics['kurtosis']:.3f}")
-            
-            # Returns distribution
-            st.subheader("📊 Returns Distribution")
-            fig_dist = go.Figure()
-            fig_dist.add_trace(go.Histogram(
-                x=returns.dropna() * 100,
-                nbinsx=50,
-                name='Daily Returns',
-                opacity=0.7
-            ))
-            fig_dist.update_layout(
-                title=f"{ticker} Daily Returns Distribution",
-                xaxis_title="Daily Returns (%)",
-                yaxis_title="Frequency",
-                template='plotly_white'
-            )
-            st.plotly_chart(fig_dist, use_container_width=True)
-            
-            # Weather data integration below price charts
-            st.subheader("🌤️ Weather Pattern Analysis")
-            
-            # Weather controls
-            weather_col1, weather_col2, weather_col3 = st.columns(3)
-            
-            with weather_col1:
-                weather_region = st.selectbox("Select Region", ["EU", "US", "Colombia"], key="weather_region_dash")
-            
-            with weather_col2:
-                weather_type = st.selectbox("Weather Type", ["temperature", "rainfall"], key="weather_type_dash")
-            
-            with weather_col3:
-                if st.button("Clear Weather Cache", key="clear_cache_dash"):
-                    manage_weather_cache(None, action='clear')
-                    st.success("Weather cache cleared!")
-                    st.rerun()
-            
-            # Display cache info
-            cache_info = get_cache_statistics()
-            st.caption(cache_info)
-            
-            # Test API connectivity
-            api_working, api_message = test_weather_api_connectivity()
-            if api_working:
-                st.success(f"🌐 {api_message}")
-            else:
-                st.warning(f"⚠️ {api_message} - Using fallback data")
-            
-            # Load weather data
-            try:
-                weather_data = load_weather_data(weather_region, weather_type, start_date, end_date)
-                
-                if weather_data.empty:
-                    st.info(f"⚡ No {weather_region} {weather_type} data available from API, generating synthetic data...")
-                    weather_data = generate_synthetic_weather_data(weather_region, weather_type, start_date, end_date)
-                    st.info(f"📊 Using synthetic {weather_region} {weather_type} data for analysis")
-                
-                if not weather_data.empty:
-                    # Align weather data with stock data
-                    stock_data_indexed = stock_data.set_index('Date')
-                    aligned_weather = weather_data.reindex(stock_data_indexed.index).fillna(method='ffill')
-                    
-                    if len(aligned_weather.dropna()) > 10:
-                        # Calculate correlation
-                        stock_returns = calculate_financial_returns(stock_data_indexed['Close'])
-                        weather_returns = aligned_weather.pct_change()
-                        
-                        valid_data = pd.concat([stock_returns, weather_returns], axis=1).dropna()
-                        if len(valid_data) > 10:
-                            correlation = valid_data.iloc[:, 0].corr(valid_data.iloc[:, 1])
-                            
-                            # Create normalized weather pattern chart
-                            fig_weather = go.Figure()
-                            
-                            # Normalize both series for comparison
-                            stock_normalized = (stock_data_indexed['Close'] - stock_data_indexed['Close'].mean()) / stock_data_indexed['Close'].std()
-                            weather_normalized = (aligned_weather - aligned_weather.mean()) / aligned_weather.std()
-                            
-                            fig_weather.add_trace(go.Scatter(
-                                x=stock_data_indexed.index,
-                                y=stock_normalized,
-                                mode='lines',
-                                name=f'{ticker} Price (Normalized)',
-                                line=dict(color='blue', width=2)
-                            ))
-                            
-                            fig_weather.add_trace(go.Scatter(
-                                x=weather_normalized.index,
-                                y=weather_normalized,
-                                mode='lines',
-                                name=f'{weather_region} {weather_type.title()} (Normalized)',
-                                line=dict(color='orange', width=2),
-                                yaxis='y2'
-                            ))
-                            
-                            fig_weather.update_layout(
-                                title=f'Normalized {ticker} Price vs {weather_region} {weather_type.title()} Pattern',
-                                xaxis_title='Date',
-                                yaxis_title='Normalized Values',
-                                template='plotly_white',
-                                hovermode='x unified',
-                                yaxis2=dict(
-                                    title=f'{weather_region} {weather_type.title()} (Normalized)',
-                                    overlaying='y',
-                                    side='right'
-                                )
-                            )
-                            
-                            st.plotly_chart(fig_weather, use_container_width=True)
-                            
-                            # Display correlation info
-                            st.info(f"📊 Correlation between {ticker} returns and {weather_region} {weather_type}: {correlation:.3f}")
-                        else:
-                            st.warning("Not enough overlapping data points for correlation analysis")
-                    else:
-                        st.warning("Insufficient weather data for meaningful analysis")
-                else:
-                    st.error(f"Failed to load {weather_region} {weather_type} data")
-                    
-            except Exception as e:
-                st.error(f"Error in weather analysis: {str(e)}")
-            
-            # Fama-French analysis
-            st.subheader("📈 Fama-French Factor Analysis")
-            
-            try:
-                ff_factors = download_fama_french_factors()
-                ff_results = perform_fama_french_regression(returns, ff_factors)
-                
-                if ff_results:
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.write("**Factor Loadings:**")
-                        st.write(f"• Alpha: {ff_results['alpha']:.6f} ({ff_results['alpha_annualized']*100:.2f}% annualized)")
-                        st.write(f"• Market Beta: {ff_results['beta_market']:.3f}")
-                        st.write(f"• Size Beta (SMB): {ff_results['beta_size']:.3f}")
-                        st.write(f"• Value Beta (HML): {ff_results['beta_value']:.3f}")
-                    
-                    with col2:
-                        st.write("**Model Performance:**")
-                        st.write(f"• R-squared: {ff_results['r_squared']:.3f}")
-                        st.write(f"• Tracking Error: {ff_results['tracking_error']*100:.2f}%")
-                        st.write(f"• Information Ratio: {ff_results['information_ratio']:.3f}")
-                else:
-                    st.warning("Insufficient data for Fama-French analysis")
-                    
-            except Exception as e:
-                st.warning(f"Fama-French analysis unavailable: {str(e)}")
-            
-            # AI/ML Explanation Section
-            st.markdown("---")
-            st.subheader("🤖 AI & Machine Learning in Financial Analysis")
-            
-            with st.expander("📚 Understanding AI/ML in Finance", expanded=False):
-                st.markdown("""
-                **Machine Learning in Financial Markets:**
-                
-                🎯 **What is Machine Learning in Finance?**
-                Machine Learning (ML) uses algorithms to automatically identify patterns in historical market data 
-                and make predictions about future price movements, without being explicitly programmed for each scenario.
-                
-                🔍 **Key ML Techniques Used:**
-                - **Time Series Analysis**: Analyzing historical price patterns to predict future trends
-                - **Regression Models**: Finding mathematical relationships between different market variables
-                - **Neural Networks**: Complex algorithms that mimic human brain processing to find non-linear patterns
-                - **Ensemble Methods**: Combining multiple models for more robust predictions
-                
-                📊 **What Our Dashboard Analyzes:**
-                1. **Technical Indicators**: Moving averages, RSI, Bollinger Bands
-                2. **Risk Metrics**: Volatility, Sharpe ratio, maximum drawdown
-                3. **Factor Analysis**: Market, size, and value factor exposures (Fama-French)
-                4. **Correlation Analysis**: Relationships between assets and external factors
-                5. **Weather Patterns**: Climate data correlation with commodity and agricultural stocks
-                
-                ⚠️ **Important Limitations:**
-                - **No Crystal Ball**: ML cannot predict unexpected events (black swan events)
-                - **Market Efficiency**: Markets often adjust faster than models can capture
-                - **Overfitting Risk**: Models may work well on historical data but fail on new data
-                - **Data Quality**: Predictions are only as good as the input data
-                
-                🎓 **Educational Value:**
-                This dashboard demonstrates various analytical techniques used in quantitative finance, 
-                helping users understand how modern financial analysis works while emphasizing the 
-                importance of human judgment in investment decisions.
-                """)
-        else:
-            st.error(f"Unable to load data for {ticker}. Please check the ticker symbol.")
-
-elif page == ":bar_chart: Stock Correlation":
-    # ===============================
-    # STOCK CORRELATION PAGE
-    # ===============================
-    
-    st.header(":bar_chart: Stock Correlation Analysis")
-    
-    # Sidebar inputs for correlation analysis
-    st.sidebar.subheader("🎯 Correlation Inputs")
-    main_ticker = st.sidebar.text_input("Main stock ticker", value="AAPL").upper()
-    start_date = st.sidebar.date_input("Start date", value=date(2023, 1, 1), key="corr_start")
-    end_date = st.sidebar.date_input("End date", value=date.today(), key="corr_end")
-    
-    # Custom variable input section
-    st.sidebar.subheader("🔧 Custom Variables")
-    
-    # Toggle for custom variable input
-    show_custom_input = st.sidebar.checkbox("Add Custom Variables", value=False)
-    
-    if show_custom_input:
-        with st.sidebar.expander("➕ Add Custom Ticker", expanded=True):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                custom_ticker = st.text_input("Enter ticker symbol", value="", key="custom_ticker_input").upper()
-            
-            with col2:
-                if st.button("🔍 Test & Add", key="test_custom_ticker"):
-                    if custom_ticker:
-                        success, message, test_data = validate_custom_ticker(custom_ticker, start_date, end_date)
-                        if success:
-                            manage_session_variables('add', custom_ticker)
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    else:
-                        st.warning("Please enter a ticker symbol")
-            
-            # Display current custom variables
-            current_custom_vars = manage_session_variables('get')
-            if current_custom_vars:
-                st.write("**Current Custom Variables:**")
-                for var in current_custom_vars:
-                    st.write(f"• {var}")
-                
-                if st.button("🗑️ Clear All Custom Variables", key="clear_custom_vars"):
-                    manage_session_variables('clear')
-    
-    # Validate dates
-    if not validate_date_inputs(start_date, end_date):
-        st.stop()
-    
-    # Variable selection
-    available_variables = get_comprehensive_variable_list()
-    selected_variables = st.multiselect(
-        "Select variables to analyze:",
-        available_variables,
-        default=["SPY (S&P 500 ETF)", "GLD (Gold ETF)", "VIX (Volatility Index)"][:min(3, len(available_variables))],
-        key="correlation_variables"
-    )
-    
-    if not selected_variables:
-        st.warning("Please select at least one variable for analysis.")
-        st.stop()
-    
-    # Load main stock data
-    if main_ticker:
-        with st.spinner(f"Loading data for {main_ticker}..."):
-            main_data = load_financial_data(main_ticker, start_date, end_date)
-        
-        if main_data is None or main_data.empty:
-            st.error(f"Unable to load data for {main_ticker}. Please check the ticker symbol.")
-            st.stop()
-        
-        # Load correlation data
-        correlation_data = {}
-        ticker_mapping = get_ticker_symbol_mapping()
-        
-        for var in selected_variables:
-            with st.spinner(f"Loading {var}..."):
-                if "(Custom)" in var:
-                    # Extract ticker from custom variable name
-                    custom_ticker = var.replace(" (Custom)", "")
-                    data = load_financial_data(custom_ticker, start_date, end_date)
-                    if data is not None and not data.empty:
-                        correlation_data[var] = data['Close']
-                    else:
-                        st.warning(f"Could not load data for custom variable {var}")
-                
-                elif var in ticker_mapping:
-                    ticker = ticker_mapping[var]
-                    data = load_financial_data(ticker, start_date, end_date)
-                    if data is not None and not data.empty:
-                        correlation_data[var] = data['Close']
-                    else:
-                        st.warning(f"Could not load data for {var}")
-                
-                elif "Weather" in var or "Temperature" in var or "Rainfall" in var:
-                    # Handle weather data
-                    if "EU" in var:
-                        region = "EU"
-                    elif "US" in var:
-                        region = "US"
-                    elif "Colombia" in var:
-                        region = "Colombia"
-                    else:
-                        continue
-                    
-                    data_type = "temperature" if "Temperature" in var else "rainfall"
-                    
-                    try:
-                        weather_series = load_weather_data(region, data_type, start_date, end_date)
-                        
-                        if weather_series.empty:
-                            weather_series = generate_synthetic_weather_data(region, data_type, start_date, end_date)
-                            st.info(f"Using synthetic data for {var}")
-                        
-                        if not weather_series.empty:
-                            correlation_data[var] = weather_series
-                    except Exception as e:
-                        st.warning(f"Error loading weather data for {var}: {str(e)}")
-        
-        if correlation_data:
-            # Create correlation matrix
-            main_returns = calculate_financial_returns(main_data['Close'])
-            corr_data = {'main_stock': main_returns}
-            
-            for var, prices in correlation_data.items():
-                if "Weather" in var or "Temperature" in var or "Rainfall" in var:
-                    # For weather data, use price change instead of returns
-                    corr_data[var] = prices.pct_change()
-                else:
-                    returns = calculate_financial_returns(prices)
-                    corr_data[var] = returns
-            
-            # Align all data
-            corr_df = pd.DataFrame(corr_data).dropna()
-            
-            if len(corr_df) > 10:
-                # Calculate correlation matrix
-                correlation_matrix = corr_df.corr()
-                
-                # Display correlation heatmap
-                st.subheader("🌡️ Correlation Heatmap")
-                
-                fig_heatmap = go.Figure(data=go.Heatmap(
-                    z=correlation_matrix.values,
-                    x=correlation_matrix.columns,
-                    y=correlation_matrix.index,
-                    colorscale='RdBu',
-                    zmid=0,
-                    text=correlation_matrix.round(3).values,
-                    texttemplate="%{text}",
-                    textfont={"size": 10}
-                ))
-                
-                fig_heatmap.update_layout(
-                    title="Correlation Matrix",
-                    template='plotly_white',
-                    height=600
-                )
-                
-                st.plotly_chart(fig_heatmap, use_container_width=True)
-                
-                # Display correlation summary
-                st.subheader("📊 Correlation Summary")
-                main_correlations = correlation_matrix['main_stock'].drop('main_stock').sort_values(key=abs, ascending=False)
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write("**Strongest Positive Correlations:**")
-                    positive_corrs = main_correlations[main_correlations > 0].head(3)
-                    for var, corr in positive_corrs.items():
-                        st.write(f"• {var}: {corr:.3f}")
-                
-                with col2:
-                    st.write("**Strongest Negative Correlations:**")
-                    negative_corrs = main_correlations[main_correlations < 0].head(3)
-                    for var, corr in negative_corrs.items():
-                        st.write(f"• {var}: {corr:.3f}")
-                
-                # Granger Causality Analysis
-                st.subheader("🔍 Granger Causality Test")
-                
-                granger_vars = list(corr_df.columns)
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    granger_x = st.selectbox("Select cause variable", granger_vars, key="granger_x")
-                
-                with col2:
-                    granger_y = st.selectbox("Select effect variable", granger_vars, key="granger_y")
-                
-                with col3:
-                    max_lag = st.slider("Max lag for test", min_value=1, max_value=365, value=5, step=1)
-                
-                if granger_x and granger_y and granger_x != granger_y:
-                    gc_results = perform_comprehensive_granger_causality_test(
-                        corr_df[granger_x], corr_df[granger_y], max_lag
-                    )
-                    
-                    if 'error' not in gc_results:
-                        st.write(f"**Testing if {granger_x} Granger-causes {granger_y}:**")
-                        
-                        # Create results table
-                        gc_table = []
-                        for lag in range(1, min(max_lag + 1, len(gc_results['x_to_y_p_values']) + 1)):
-                            if lag - 1 < len(gc_results['x_to_y_p_values']):
-                                pval = gc_results['x_to_y_p_values'][lag - 1]
-                                significant = "Yes" if pval < 0.05 else "No"
-                                gc_table.append({"Lag": lag, "p-value": f"{pval:.4f}", "Significant": significant})
-                        
-                        if gc_table:
-                            st.dataframe(pd.DataFrame(gc_table), use_container_width=True)
-                            
-                            if gc_results['significant_x_to_y']:
-                                st.success(f"✅ {granger_x} Granger-causes {granger_y} (p < 0.05)")
-                            else:
-                                st.info(f"❌ No significant Granger causality detected from {granger_x} to {granger_y}")
-                    else:
-                        st.warning(f"⚠️ {gc_results['error']}")
-                else:
-                    st.info("Select two different variables for Granger causality analysis.")
-            else:
-                st.warning("Not enough overlapping data points for meaningful correlation analysis.")
-        else:
-            st.warning("No correlation data could be loaded. Please check your variable selections.")
-    else:
-        st.warning("Please enter a main ticker symbol.")
 
 # --- PAGE 1: STOCK DASHBOARD ---
 if page == ":chart_with_upwards_trend: Stock Dashboard":
@@ -1662,11 +878,11 @@ elif page == ":bar_chart: Stock Correlation":
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.info(get_cache_statistics())
+            st.info(get_cache_info())
         
         with col2:
             if st.button("🗑️ Clear Cache"):
-                manage_weather_cache(None, action='clear')
+                clear_weather_cache()
         
         with col3:
             st.caption("💡 Tip: Cache saves API costs by storing data permanently")
@@ -1780,7 +996,7 @@ elif page == ":bar_chart: Stock Correlation":
     weather_vars = [var for var in selected_vars if 'Temperature' in var or 'Rainfall' in var or 'Air Quality' in var]
     if weather_vars:
         # Test API connectivity first
-        api_working, api_status = test_weather_api_connectivity()
+        api_working, api_status = test_weather_api()
         if api_working:
             st.info(f"🌤️ Loading weather data for {len(weather_vars)} variables. API test successful: {api_status}")
         else:
@@ -1807,11 +1023,11 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info(f"✅ **{var}**: Using real weather data from API")
                 else:
                     st.warning(f"⚠️ **{var}**: No valid API data. Using synthetic seasonal temperature data.")
-                    fallback_series = generate_synthetic_weather_data('Colombia', 'temperature', corr_start_date, corr_end_date)
+                    fallback_series = load_alternative_weather_data('Colombia', 'temperature', corr_start_date, corr_end_date)
                     corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
             else:
                 st.warning(f"⚠️ **{var}**: API unavailable. Using synthetic seasonal temperature data.")
-                fallback_series = generate_synthetic_weather_data('Colombia', 'temperature', corr_start_date, corr_end_date)
+                fallback_series = load_alternative_weather_data('Colombia', 'temperature', corr_start_date, corr_end_date)
                 corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
                 
         elif var == "Colombia Average Daily Rainfall (Historical)":
@@ -1825,11 +1041,11 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info(f"✅ **{var}**: Using real weather data from API")
                 else:
                     st.warning(f"⚠️ **{var}**: No valid API data. Using synthetic seasonal rainfall data.")
-                    fallback_series = generate_synthetic_weather_data('Colombia', 'rainfall', corr_start_date, corr_end_date)
+                    fallback_series = load_alternative_weather_data('Colombia', 'rainfall', corr_start_date, corr_end_date)
                     corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
             else:
                 st.warning(f"⚠️ **{var}**: API unavailable. Using synthetic seasonal rainfall data.")
-                fallback_series = generate_synthetic_weather_data('Colombia', 'rainfall', corr_start_date, corr_end_date)
+                fallback_series = load_alternative_weather_data('Colombia', 'rainfall', corr_start_date, corr_end_date)
                 corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
                 
         elif var in etf_map:
@@ -1877,11 +1093,11 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info(f"✅ **{var}**: Using real weather data from API")
                 else:
                     st.warning(f"⚠️ **{var}**: No valid API data. Using synthetic seasonal rainfall data.")
-                    fallback_series = generate_synthetic_weather_data('EU', 'rainfall', corr_start_date, corr_end_date)
+                    fallback_series = load_alternative_weather_data('EU', 'rainfall', corr_start_date, corr_end_date)
                     corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
             else:
                 st.warning(f"⚠️ **{var}**: API unavailable. Using synthetic seasonal rainfall data.")
-                fallback_series = generate_synthetic_weather_data('EU', 'rainfall', corr_start_date, corr_end_date)
+                fallback_series = load_alternative_weather_data('EU', 'rainfall', corr_start_date, corr_end_date)
                 corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
                 
         elif var == "US Daily Rainfall Avg (Historical)":
@@ -1894,11 +1110,11 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info(f"✅ **{var}**: Using real weather data from API")
                 else:
                     st.warning(f"⚠️ **{var}**: No valid API data. Using synthetic seasonal rainfall data.")
-                    fallback_series = generate_synthetic_weather_data('US', 'rainfall', corr_start_date, corr_end_date)
+                    fallback_series = load_alternative_weather_data('US', 'rainfall', corr_start_date, corr_end_date)
                     corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
             else:
                 st.warning(f"⚠️ **{var}**: API unavailable. Using synthetic seasonal rainfall data.")
-                fallback_series = generate_synthetic_weather_data('US', 'rainfall', corr_start_date, corr_end_date)
+                fallback_series = load_alternative_weather_data('US', 'rainfall', corr_start_date, corr_end_date)
                 corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
                 
         elif var == "EU Daily Temperature Avg (Historical)":
@@ -1911,11 +1127,11 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info(f"✅ **{var}**: Using real weather data from API")
                 else:
                     st.warning(f"⚠️ **{var}**: No valid API data. Using synthetic seasonal temperature data.")
-                    fallback_series = generate_synthetic_weather_data('EU', 'temperature', corr_start_date, corr_end_date)
+                    fallback_series = load_alternative_weather_data('EU', 'temperature', corr_start_date, corr_end_date)
                     corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
             else:
                 st.warning(f"⚠️ **{var}**: API unavailable. Using synthetic seasonal temperature data.")
-                fallback_series = generate_synthetic_weather_data('EU', 'temperature', corr_start_date, corr_end_date)
+                fallback_series = load_alternative_weather_data('EU', 'temperature', corr_start_date, corr_end_date)
                 corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
                 
         elif var == "US Daily Temperature Avg (Historical)":
@@ -1928,11 +1144,11 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info(f"✅ **{var}**: Using real weather data from API")
                 else:
                     st.warning(f"⚠️ **{var}**: No valid API data. Using synthetic seasonal temperature data.")
-                    fallback_series = generate_synthetic_weather_data('US', 'temperature', corr_start_date, corr_end_date)
+                    fallback_series = load_alternative_weather_data('US', 'temperature', corr_start_date, corr_end_date)
                     corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
             else:
                 st.warning(f"⚠️ **{var}**: API unavailable. Using synthetic seasonal temperature data.")
-                fallback_series = generate_synthetic_weather_data('US', 'temperature', corr_start_date, corr_end_date)
+                fallback_series = load_alternative_weather_data('US', 'temperature', corr_start_date, corr_end_date)
                 corr_df[var] = fallback_series.reindex(corr_data.index, method='nearest')
                 
         elif var == "EU Air Quality Daily Avg (Historical)":
