@@ -1,0 +1,29 @@
+# Finance Dashboard Requirements
+# Core Streamlit and Data Science Libraries
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Financial Data
+yfinance>=0.2.18
+
+# Visualization
+plotly>=5.15.0
+
+# Machine Learning and Statistical Analysis
+scikit-learn>=1.3.0
+scipy>=1.11.0
+statsmodels>=0.14.0
+
+# Deep Learning (Optional - TensorFlow)
+tensorflow>=2.13.0
+
+# HTTP Requests and Data Processing
+requests>=2.31.0
+
+# Python Standard Library (already included with Python)
+# datetime, pickle, hashlib, os, zipfile, io, shutil, time, warnings
+
+# Additional utilities that might be needed
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0
