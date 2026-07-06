@@ -2,7 +2,7 @@
 
 An interactive Streamlit dashboard for equity and cross-asset analysis, combining
 market data, fundamental ratios, factor models, and machine-learning-based
-correlation and price analysis in a single app.
+correlation and pri analysis in a single app.
 
 Live app: https://financedashboardhugovl.streamlit.app/
 

@@ -6,7 +6,9 @@ pandas>=2.0.0
 numpy>=1.24.0
 
 # Financial Data
-yfinance>=0.2.18
+# yfinance 1.5+ is the current line (the .info endpoint is still rate-limited by
+# Yahoo regardless of version; the app retries and fails soft when it happens)
+yfinance>=1.5.0
 pandas-datareader>=0.10.0
 
 # Visualization

@@ -67,16 +67,35 @@ def _yf_retry(func, *args, retries=3, base_delay=1.0, **kwargs):
 
 
 @st.cache_data(ttl=600)
+def _fetch_ticker_info_cached(ticker_symbol):
+    """Cached inner fetch. Raises on failure so st.cache_data does NOT store
+    an empty result (a transient rate-limit would otherwise stick for ttl)."""
+    info = yf.Ticker(ticker_symbol).info
+    if not isinstance(info, dict) or len(info) < 5:
+        raise ValueError("empty or invalid .info payload")
+    return info
+
+
 def get_ticker_info(ticker_symbol):
-    """Fetch .info once, safely. Cached so we don't re-hit the API per section."""
-    info = _yf_retry(lambda: yf.Ticker(ticker_symbol).info)
+    """Fetch .info safely with retries. Returns {} on failure (not cached)."""
+    def _attempt():
+        return _fetch_ticker_info_cached(ticker_symbol)
+    info = _yf_retry(_attempt)
     return info if isinstance(info, dict) else {}
 
 
 @st.cache_data(ttl=600)
+def _fetch_quarterly_financials_cached(ticker_symbol):
+    """Cached inner fetch; raises on empty so failures aren't cached."""
+    fins = yf.Ticker(ticker_symbol).quarterly_financials
+    if fins is None or (hasattr(fins, "empty") and fins.empty):
+        raise ValueError("empty quarterly_financials")
+    return fins
+
+
 def get_quarterly_financials(ticker_symbol):
-    """Fetch quarterly financials safely; returns None on failure."""
-    return _yf_retry(lambda: yf.Ticker(ticker_symbol).quarterly_financials)
+    """Fetch quarterly financials safely; returns None on failure (not cached)."""
+    return _yf_retry(lambda: _fetch_quarterly_financials_cached(ticker_symbol))
 
 
 # --- API key resolution -----------------------------------------------------
@@ -556,6 +575,13 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
     # — Financial Ratios & Fundamental Metrics — 
     st.subheader("🧮 Key Financial Ratios & Fundamentals")
     info = get_ticker_info(ticker)
+
+    if not info:
+        st.warning(
+            f"⚠️ Couldn't fetch fundamentals for {ticker} from Yahoo Finance right now "
+            "(the .info endpoint is often rate-limited). The ratios below will show N/A. "
+            "Try reloading in a moment — this is a data-source issue, not missing data."
+        )
 
     pe = info.get("trailingPE", None)
     eps = info.get("trailingEps", None)
