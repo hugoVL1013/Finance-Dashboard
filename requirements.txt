@@ -1,6 +1,7 @@
 # Finance Dashboard Requirements
 # Core Streamlit and Data Science Libraries
-streamlit>=1.28.0
+# 1.40+ required for the width='stretch' API (replaces deprecated use_container_width)
+streamlit>=1.40.0
 pandas>=2.0.0
 numpy>=1.24.0
 

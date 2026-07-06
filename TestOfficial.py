@@ -313,7 +313,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
 
     with st.container():
         st.subheader(f":mag: Last 5 Days of {ticker}")
-        st.dataframe(data.tail(5), use_container_width=True)
+    st.dataframe(data.tail(5), width='stretch')
 
     with st.container():
         st.subheader(f":chart_with_downwards_trend: Price Chart for {ticker}")
@@ -358,7 +358,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
             fig = px.line(data, x='Date', y='Close', title=f"{ticker} Closing Price Over Time", labels={'Close': 'Price (USD)', 'Date': 'Date'})
             fig.update_traces(line_color='blue', line_width=2)
             fig.update_layout(template="plotly_white", height=500, hovermode='x unified')
-        st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Add Rolling Volatility
     with st.container():
@@ -367,7 +367,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         data['Rolling Volatility'] = data['Returns'].rolling(window=30).std() * np.sqrt(252)
         fig_vol = px.line(data, x='Date', y='Rolling Volatility', title="30-day Rolling Volatility", labels={'Rolling Volatility': 'Volatility'})
         fig_vol.update_layout(template="plotly_white", height=400)
-        st.plotly_chart(fig_vol, use_container_width=True)
+    st.plotly_chart(fig_vol, width='stretch')
 
     # Add Moving Averages
     with st.container():
@@ -381,7 +381,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         fig_ma.add_trace(go.Scatter(x=data['Date'], y=data['MA50'], mode='lines', name='MA50'))
         fig_ma.add_trace(go.Scatter(x=data['Date'], y=data['MA200'], mode='lines', name='MA200'))
         fig_ma.update_layout(title="Moving Averages Comparison", template="plotly_white", height=500)
-        st.plotly_chart(fig_ma, use_container_width=True)
+    st.plotly_chart(fig_ma, width='stretch')
 
 
     # --- Rolling Beta Calculation and Plot ---
@@ -439,7 +439,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
                 labels={'Rolling Beta': 'Beta', 'Date': 'Date'}
             )
             fig_beta.update_layout(template="plotly_white", height=400, hovermode='x unified')
-            st.plotly_chart(fig_beta, use_container_width=True)
+            st.plotly_chart(fig_beta, width='stretch')
         else:
             st.warning(f"Benchmark data for {rolling_benchmark_name} unavailable. Rolling beta cannot be displayed.")
 
@@ -453,7 +453,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         data['Sharpe Ratio'] = ((data['Rolling Return'] - risk_free_rate_daily) * 252) / (data['Rolling Std'] * np.sqrt(252))
         fig_sharpe = px.line(data, x='Date', y='Sharpe Ratio', title="Rolling Sharpe Ratio (90-day)", labels={'Sharpe Ratio': 'Sharpe Ratio'})
         fig_sharpe.update_layout(template="plotly_white", height=400)
-        st.plotly_chart(fig_sharpe, use_container_width=True)
+    st.plotly_chart(fig_sharpe, width='stretch')
 
 
     with st.container():
@@ -486,7 +486,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
             labels={'Log Return': 'Log Return', 'Date': 'Date'}
         )
         fig_log.update_layout(template="plotly_white", height=400, hovermode='x unified')
-        st.plotly_chart(fig_log, use_container_width=True)
+    st.plotly_chart(fig_log, width='stretch')
 
         benchmark_text = f" vs. {benchmark_name} ({bm_log_return_yearly:.4f} or {bm_log_return_yearly*100:.2f}%)" if bm_log_return_yearly else ""
 
@@ -764,7 +764,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
                         height=400,
                         hovermode='x unified'
                     )
-                    st.plotly_chart(fig_ff, use_container_width=True)
+                    st.plotly_chart(fig_ff, width='stretch')
                     
                     # Create bar chart of factor coefficients
                     coef_vals = [beta_market, beta_size, beta_value]
@@ -802,7 +802,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
                             )
                         )]
                     )
-                    st.plotly_chart(fig_coef, use_container_width=True)
+                    st.plotly_chart(fig_coef, width='stretch')
                     
                     # Factor interpretations
                     with st.expander("📚 Factor Interpretation Guide", expanded=False):
@@ -1265,7 +1265,7 @@ elif page == ":bar_chart: Stock Correlation":
         
         summary_df = pd.DataFrame(summary_data)
         st.markdown("#### 📊 Optimal Window Summary")
-        st.dataframe(summary_df, use_container_width=True)
+    st.dataframe(summary_df, width='stretch')
         
         # Create visualization of correlation vs window size
         fig_opt = go.Figure()
@@ -1296,7 +1296,7 @@ elif page == ":bar_chart: Stock Correlation":
             height=500,
             hovermode='x unified'
         )
-        st.plotly_chart(fig_opt, use_container_width=True)
+    st.plotly_chart(fig_opt, width='stretch')
         
         # Create heatmap for maximum correlations
         fig_heat = go.Figure()
@@ -1318,7 +1318,7 @@ elif page == ":bar_chart: Stock Correlation":
             height=400,
             hovermode='x unified'
         )
-        st.plotly_chart(fig_heat, use_container_width=True)
+    st.plotly_chart(fig_heat, width='stretch')
     
     st.markdown("#### 📈 Custom Rolling Correlation")
     window = st.number_input("Select rolling window size (days):", min_value=5, max_value=250, value=60, step=1, help="Number of days for rolling correlation window.")
@@ -1520,7 +1520,7 @@ elif page == ":bar_chart: Stock Correlation":
         height=400,
         legend_title="Variable"
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # --- Normalized Price Comparison ---
     st.markdown("#### 📊 Price Comparison Chart")
@@ -1592,7 +1592,7 @@ elif page == ":bar_chart: Stock Correlation":
             color='#ff7f0e'
         )
     )
-    st.plotly_chart(fig_prices, use_container_width=True)
+    st.plotly_chart(fig_prices, width='stretch')
 
     # --- Weather Data Visualization ---
     # Check if any weather variables are selected
@@ -1644,7 +1644,7 @@ elif page == ":bar_chart: Stock Correlation":
                     x=0.5
                 )
             )
-            st.plotly_chart(fig_weather_norm, use_container_width=True)
+            st.plotly_chart(fig_weather_norm, width='stretch')
             
             # Add explanation
             with st.expander("💡 Weather Data Explanation", expanded=False):
@@ -2610,7 +2610,7 @@ elif page == ":bar_chart: Stock Correlation":
                         'RMSE': [np.sqrt(rf_mse) if rf_mse else 0, np.sqrt(lstm_mse) if lstm_mse else 0, np.sqrt(mse) if mse else 0],
                         'Directional Acc': [rf_directional or 0, lstm_directional or 0, directional_accuracy or 0]
                     })
-                    st.dataframe(comparison_df, use_container_width=True)
+                    st.dataframe(comparison_df, width='stretch')
                 
                 # Feature importance (for Random Forest models)
                 if ("Random Forest" in selected_model and rf_model is not None and 
@@ -2635,7 +2635,7 @@ elif page == ":bar_chart: Stock Correlation":
                         template="plotly_white",
                         height=500
                     )
-                    st.plotly_chart(fig_importance, use_container_width=True)
+                    st.plotly_chart(fig_importance, width='stretch')
                 
                 # LSTM training history
                 if ("LSTM" in selected_model or "Ensemble" in selected_model) and lstm_history is not None:
@@ -2661,7 +2661,7 @@ elif page == ":bar_chart: Stock Correlation":
                         template="plotly_white",
                         height=400
                     )
-                    st.plotly_chart(fig_history, use_container_width=True)
+                    st.plotly_chart(fig_history, width='stretch')
                 
                 # Make future prediction
                 current_price = main_data['Close'].iloc[-1]
@@ -2770,7 +2770,7 @@ elif page == ":bar_chart: Stock Correlation":
                         template="plotly_white",
                         height=500
                     )
-                    st.plotly_chart(fig_perf, use_container_width=True)
+                    st.plotly_chart(fig_perf, width='stretch')
                 
                 # === CORRELATION PATTERN ANALYSIS ===
                 if correlation_patterns:
@@ -2839,7 +2839,7 @@ elif page == ":bar_chart: Stock Correlation":
                                         template="plotly_white",
                                         height=400
                                     )
-                                    st.plotly_chart(fig_cycle, use_container_width=True)
+                                    st.plotly_chart(fig_cycle, width='stretch')
                                 
                                 st.markdown("---")
                     
@@ -2896,7 +2896,7 @@ elif page == ":bar_chart: Stock Correlation":
                         if seasonal_assets:
                             st.write("**📊 Seasonal Pattern Summary:**")
                             seasonal_df = pd.DataFrame(seasonal_assets)
-                            st.dataframe(seasonal_df, use_container_width=True)
+                            st.dataframe(seasonal_df, width='stretch')
                             
                             st.markdown("---")
                             
@@ -2940,7 +2940,7 @@ elif page == ":bar_chart: Stock Correlation":
                                     height=max(200, len(asset_names) * 60),
                                     font=dict(size=12)
                                 )
-                                st.plotly_chart(fig_monthly, use_container_width=True)
+                                st.plotly_chart(fig_monthly, width='stretch')
                                 
                                 # Monthly line chart for better trend visualization
                                 st.write("**📈 Monthly Correlation Trends:**")
@@ -2974,7 +2974,7 @@ elif page == ":bar_chart: Stock Correlation":
                                         x=1
                                     )
                                 )
-                                st.plotly_chart(fig_monthly_lines, use_container_width=True)
+                                st.plotly_chart(fig_monthly_lines, width='stretch')
                             
                             # Quarterly patterns visualization
                             if all_quarterly_data:
@@ -3009,7 +3009,7 @@ elif page == ":bar_chart: Stock Correlation":
                                         x=1
                                     )
                                 )
-                                st.plotly_chart(fig_quarterly, use_container_width=True)
+                                st.plotly_chart(fig_quarterly, width='stretch')
                                 
                                 # Seasonal insights
                                 st.write("**🔍 Seasonal Insights:**")
@@ -3121,7 +3121,7 @@ elif page == ":bar_chart: Stock Correlation":
                 display_table = gc_table[:3] + gc_table[-3:]
             else:
                 display_table = gc_table
-            st.dataframe(pd.DataFrame(display_table), use_container_width=True)
+            st.dataframe(pd.DataFrame(display_table), width='stretch')
             # Check if any displayed lag is significant
             any_significant = any(row['Significant'] == "Yes" for row in gc_table)
             if any_significant:
