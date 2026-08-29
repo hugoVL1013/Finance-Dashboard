@@ -40,12 +40,78 @@ except ImportError:
 
 
 # Page title and config
-st.set_page_config(page_title="📊 Finance Dashboard", layout="wide")
-st.title(":bar_chart: Finance Dashboard")
+st.set_page_config(page_title="📊 Finance Dashboard", page_icon="📊", layout="wide")
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif; }
+
+/* Hero header */
+.fd-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 1.75rem;
+    color: white;
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25);
+}
+.fd-hero h1 { margin: 0; font-size: 1.9em; font-weight: 700; color: white; }
+.fd-hero p { margin: 6px 0 0 0; opacity: 0.9; font-size: 0.95em; }
+
+/* Section headers get a small accent bar for visual rhythm */
+h2, h3 { font-weight: 700 !important; }
+h3 { border-left: 4px solid #764ba2; padding-left: 10px; margin-top: 1.6rem !important; }
+
+/* Card-style bordered containers */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 12px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* Metric cards */
+div[data-testid="stMetric"] {
+    background: rgba(118, 75, 162, 0.06);
+    border: 1px solid rgba(118, 75, 162, 0.15);
+    border-radius: 10px;
+    padding: 12px 14px 8px 14px;
+}
+div[data-testid="stMetricLabel"] { font-weight: 600; opacity: 0.75; }
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #f7f7fb 0%, #ffffff 100%);
+    border-right: 1px solid rgba(0,0,0,0.06);
+}
+section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h3 { font-weight: 700 !important; }
+
+/* Buttons */
+div.stButton > button, div.stDownloadButton > button {
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+/* Tabs */
+button[data-baseweb="tab"] { font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="fd-hero">
+    <h1>📊 Finance Dashboard</h1>
+    <p>Stock analytics, factor models, and AI-assisted price prediction — for research and education, not financial advice.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Sidebar navigation
-st.sidebar.title(":pushpin: Navigation")
-page = st.sidebar.radio("Go to", [":chart_with_upwards_trend: Stock Dashboard", ":bar_chart: Stock Correlation"])
+st.sidebar.markdown("### 📌 Navigation")
+page = st.sidebar.radio(
+    "Go to",
+    [":chart_with_upwards_trend: Stock Dashboard", ":bar_chart: Stock Correlation"],
+    label_visibility="collapsed",
+)
+st.sidebar.divider()
 
 # --- Robust yfinance access -------------------------------------------------
 # Yahoo Finance routinely rate-limits or returns transient errors. Without a
@@ -146,10 +212,6 @@ def test_weather_api():
         return False, f"Error: {str(e)[:50]}"
 
 # Enhanced weather data loading with persistent file caching
-import os
-import pickle
-import hashlib
-
 def get_cache_key(region, data_type, start_date, end_date):
     """Generate a unique cache key for the parameters"""
     key_string = f"{region}_{data_type}_{start_date}_{end_date}"
@@ -355,13 +417,14 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
     st.warning("**Risk Disclaimer:** This is for educational purposes only. Not financial advice. Always do your own research before making investment decisions.")
 
     # Sidebar inputs
-    st.sidebar.subheader("Stock Input")
+    st.sidebar.markdown("#### 🔎 Stock Input")
     ticker = st.sidebar.text_input("Enter a stock ticker:", "AAPL").upper()
     st.header(f":chart_with_upwards_trend: Stock Price Analysis for {ticker}")
     start_date = st.sidebar.date_input("Start Date", value=date(2020, 1, 1))
     end_date = st.sidebar.date_input("End Date", value=date.today())
 
-    st.sidebar.subheader("Chart Options")
+    st.sidebar.divider()
+    st.sidebar.markdown("#### ⚙️ Chart Options")
     normalize_with_index = st.sidebar.checkbox("Compare with market index", value=False)
 
     if start_date >= end_date:
@@ -375,11 +438,11 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         st.error(":x: No data found. Please check your ticker symbol and date range.")
         st.stop()
 
-    with st.container():
+    with st.container(border=True):
         st.subheader(f":mag: Last 5 Days of {ticker}")
         st.dataframe(data.tail(5), width='stretch')
 
-    with st.container():
+    with st.container(border=True):
         st.subheader(f":chart_with_downwards_trend: Price Chart for {ticker}")
 
         # Determine local market benchmark for all beta calculations and charting
@@ -425,7 +488,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         st.plotly_chart(fig, width='stretch')
 
     # Add Rolling Volatility
-    with st.container():
+    with st.container(border=True):
         st.subheader(":repeat: Rolling Volatility (30-day)")
         data['Returns'] = data['Close'].pct_change()
         data['Rolling Volatility'] = data['Returns'].rolling(window=30).std() * np.sqrt(252)
@@ -434,7 +497,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         st.plotly_chart(fig_vol, width='stretch')
 
     # Add Moving Averages
-    with st.container():
+    with st.container(border=True):
         st.subheader(":globe_with_meridians: Moving Averages (MA20, MA50, MA200)")
         data['MA20'] = data['Close'].rolling(window=20).mean()
         data['MA50'] = data['Close'].rolling(window=50).mean()
@@ -449,7 +512,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
 
 
     # --- Rolling Beta Calculation and Plot ---
-    with st.container():
+    with st.container(border=True):
         st.subheader(":arrows_counterclockwise: 90-Day Rolling Beta")
 
         # Always use the local market benchmark as determined above
@@ -508,7 +571,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
             st.warning(f"Benchmark data for {rolling_benchmark_name} unavailable. Rolling beta cannot be displayed.")
 
     # Add Rolling Sharpe Ratio
-    with st.container():
+    with st.container(border=True):
         st.subheader(":chart_with_upwards_trend: Sharpe Ratio Over Time (90-day Rolling)")
         risk_free_rate_daily = 0.025 / 252  # Daily risk-free rate (2.5% annual)
         data['Rolling Return'] = data['Returns'].rolling(window=90).mean()
@@ -520,7 +583,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         st.plotly_chart(fig_sharpe, width='stretch')
 
 
-    with st.container():
+    with st.container(border=True):
         # Calculate daily log returns using 'Close' prices
         data['Log Return'] = np.log(data['Close'] / data['Close'].shift(1))
         data = data.dropna(subset=['Log Return'])  # Drop NaN for plotting
@@ -697,11 +760,12 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
     st.subheader("📊 Fama French Factor Analysis")
     
     from statsmodels.api import OLS, add_constant
-    import io, zipfile, requests
-    
-    # Try to fetch Fama-French 3-factor data
-    try:
-        # Download Fama-French 3-factor daily CSV from Ken French website
+
+    # The Ken French data file changes at most once a month, so the network
+    # fetch + zip parse is cached for a day — without this it re-downloaded
+    # the full factor history on every widget interaction on this page.
+    @st.cache_data(ttl=86400)
+    def _fetch_fama_french_factors_raw():
         ff_url = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_Factors_daily_CSV.zip"
         r = requests.get(ff_url, timeout=30)
         r.raise_for_status()
@@ -710,22 +774,22 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
             with z.open(file_name) as f:
                 ff_raw = f.read().decode('latin1')
                 lines = ff_raw.split('\n')
-                
+
                 # Find the line with the column headers
                 start_idx = next((i for i, line in enumerate(lines) if "Mkt-RF" in line), None)
                 if start_idx is None:
                     raise ValueError("Could not find the header row with Mkt-RF")
-                
+
                 # Extract the data section
                 data_lines = lines[start_idx:]
                 ff_csv = '\n'.join(data_lines)
-                
+
                 # Read the CSV data
                 ff_factors = pd.read_csv(io.StringIO(ff_csv), engine='python', skip_blank_lines=True)
                 date_col = ff_factors.columns[0]
                 ff_factors = ff_factors.rename(columns={date_col: 'Date'})
                 ff_factors = ff_factors.dropna()
-                
+
                 # Convert dates and ensure timezone-naive datetime
                 ff_factors['Date'] = pd.to_datetime(ff_factors['Date'].astype(str).str.strip(), format='%Y%m%d')
                 ff_factors = ff_factors.set_index('Date')
@@ -733,191 +797,196 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
                 if isinstance(ff_factors.index, pd.DatetimeIndex) and ff_factors.index.tz is not None:
                     ff_factors.index = ff_factors.index.tz_localize(None)
                 ff_factors = ff_factors / 100  # Convert percent to decimal
-                
-                # Filter Fama-French data to match stock data date range
-                ff_factors = ff_factors.loc[(ff_factors.index >= pd.to_datetime(start_date)) & 
-                                          (ff_factors.index <= pd.to_datetime(end_date))]
-                
-                # Convert daily returns to monthly returns
-                ff_factors_monthly = (1 + ff_factors).resample('ME').prod() - 1
-                
-                # For stock returns, use the data from the stock dashboard
-                stock_data_for_ff = data.copy()
-                stock_data_for_ff['Date'] = pd.to_datetime(stock_data_for_ff['Date'])
-                # Ensure stock data index is timezone-naive before setting as index
-                if hasattr(stock_data_for_ff['Date'], 'dt') and hasattr(stock_data_for_ff['Date'].dt, 'tz') and stock_data_for_ff['Date'].dt.tz is not None:
-                    stock_data_for_ff['Date'] = stock_data_for_ff['Date'].dt.tz_localize(None)
-                stock_data_for_ff = stock_data_for_ff.set_index('Date')
-                # Double-check that the index is timezone-naive
-                if isinstance(stock_data_for_ff.index, pd.DatetimeIndex) and stock_data_for_ff.index.tz is not None:
-                    stock_data_for_ff.index = stock_data_for_ff.index.tz_localize(None)
-                
-                # Calculate stock monthly returns
-                stock_monthly = stock_data_for_ff['Close'].resample('ME').last()
-                stock_returns_monthly = stock_monthly.pct_change().dropna()
-                
-                # Create monthly dataframe for regression
-                monthly_df = pd.DataFrame({
-                    ticker: stock_returns_monthly
-                })
-                
-                # Ensure both dataframes have timezone-naive indexes before merging
-                if isinstance(monthly_df.index, pd.DatetimeIndex) and monthly_df.index.tz is not None:
-                    monthly_df.index = monthly_df.index.tz_localize(None)
-                if isinstance(ff_factors_monthly.index, pd.DatetimeIndex) and ff_factors_monthly.index.tz is not None:
-                    ff_factors_monthly.index = ff_factors_monthly.index.tz_localize(None)
-                
-                # Merge with monthly FF factors
-                ff_regression_df = monthly_df.merge(ff_factors_monthly[['Mkt-RF', 'SMB', 'HML', 'RF']], 
-                                         left_index=True, right_index=True, how='inner')
-                
-                # Calculate excess returns for the stock
-                ff_regression_df[f'{ticker}_excess'] = ff_regression_df[ticker] - ff_regression_df['RF']
-                
-                ff_predictors = ['Mkt-RF', 'SMB', 'HML']
-                ff_regression_df = ff_regression_df.dropna()
-                
-                if len(ff_regression_df) > 10:  # Ensure we have enough data
-                    # Run Fama-French 3-factor regression
-                    X = ff_regression_df[ff_predictors]
-                    y = ff_regression_df[f'{ticker}_excess']
-                    X_const = add_constant(X)
-                    ff_model = OLS(y, X_const).fit()
-                    
-                    # Display regression results
-                    st.markdown(f"**{ticker} Excess Returns vs Fama-French Factors**")
-                    
-                    # Extract coefficients
-                    alpha = ff_model.params.get('const', 0)
-                    beta_market = ff_model.params.get('Mkt-RF', 0)
-                    beta_size = ff_model.params.get('SMB', 0)
-                    beta_value = ff_model.params.get('HML', 0)
-                    
-                    # Display factor loadings
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    with col1:
-                        st.metric("Alpha (α)", f"{alpha*12*100:.2f}%/year")
-                        st.caption("Risk-adjusted excess return")
-                    
-                    with col2:
-                        st.metric("Market Beta (β)", f"{beta_market:.3f}")
-                        market_interp = "More volatile" if beta_market > 1 else "Less volatile" if beta_market < 1 else "Same volatility"
-                        st.caption(f"{market_interp} than market")
-                    
-                    with col3:
-                        st.metric("Size Factor (SMB)", f"{beta_size:.3f}")
-                        size_interp = "Small-cap bias" if beta_size > 0 else "Large-cap bias" if beta_size < 0 else "Size neutral"
-                        st.caption(size_interp)
-                    
-                    with col4:
-                        st.metric("Value Factor (HML)", f"{beta_value:.3f}")
-                        value_interp = "Value bias" if beta_value > 0 else "Growth bias" if beta_value < 0 else "Value neutral"
-                        st.caption(value_interp)
-                    
-                    # Model fit
-                    st.markdown(f"**Model R²:** {ff_model.rsquared:.3f} ({ff_model.rsquared*100:.1f}% of excess returns explained)")
-                    
-                    # Create time series plot of monthly factor returns
-                    fig_ff = go.Figure()
-                    for factor in ff_predictors:
-                        fig_ff.add_trace(go.Scatter(
-                            x=ff_factors_monthly.index,
-                            y=ff_factors_monthly[factor],
-                            name=factor,
-                            mode='lines'
-                        ))
-                    fig_ff.update_layout(
-                        title="Fama-French Monthly Factor Returns Over Time",
-                        xaxis_title="Date",
-                        yaxis_title="Factor Returns",
-                        template="plotly_white",
-                        height=400,
-                        hovermode='x unified'
+                return ff_factors
+
+    # Try to fetch Fama-French 3-factor data
+    try:
+        ff_factors = _fetch_fama_french_factors_raw()
+
+        # Filter Fama-French data to match stock data date range
+        ff_factors = ff_factors.loc[(ff_factors.index >= pd.to_datetime(start_date)) &
+                                  (ff_factors.index <= pd.to_datetime(end_date))]
+
+        # Convert daily returns to monthly returns
+        ff_factors_monthly = (1 + ff_factors).resample('ME').prod() - 1
+
+        # For stock returns, use the data from the stock dashboard
+        stock_data_for_ff = data.copy()
+        stock_data_for_ff['Date'] = pd.to_datetime(stock_data_for_ff['Date'])
+        # Ensure stock data index is timezone-naive before setting as index
+        if hasattr(stock_data_for_ff['Date'], 'dt') and hasattr(stock_data_for_ff['Date'].dt, 'tz') and stock_data_for_ff['Date'].dt.tz is not None:
+            stock_data_for_ff['Date'] = stock_data_for_ff['Date'].dt.tz_localize(None)
+        stock_data_for_ff = stock_data_for_ff.set_index('Date')
+        # Double-check that the index is timezone-naive
+        if isinstance(stock_data_for_ff.index, pd.DatetimeIndex) and stock_data_for_ff.index.tz is not None:
+            stock_data_for_ff.index = stock_data_for_ff.index.tz_localize(None)
+
+        # Calculate stock monthly returns
+        stock_monthly = stock_data_for_ff['Close'].resample('ME').last()
+        stock_returns_monthly = stock_monthly.pct_change().dropna()
+
+        # Create monthly dataframe for regression
+        monthly_df = pd.DataFrame({
+            ticker: stock_returns_monthly
+        })
+
+        # Ensure both dataframes have timezone-naive indexes before merging
+        if isinstance(monthly_df.index, pd.DatetimeIndex) and monthly_df.index.tz is not None:
+            monthly_df.index = monthly_df.index.tz_localize(None)
+        if isinstance(ff_factors_monthly.index, pd.DatetimeIndex) and ff_factors_monthly.index.tz is not None:
+            ff_factors_monthly.index = ff_factors_monthly.index.tz_localize(None)
+
+        # Merge with monthly FF factors
+        ff_regression_df = monthly_df.merge(ff_factors_monthly[['Mkt-RF', 'SMB', 'HML', 'RF']],
+                                 left_index=True, right_index=True, how='inner')
+
+        # Calculate excess returns for the stock
+        ff_regression_df[f'{ticker}_excess'] = ff_regression_df[ticker] - ff_regression_df['RF']
+
+        ff_predictors = ['Mkt-RF', 'SMB', 'HML']
+        ff_regression_df = ff_regression_df.dropna()
+
+        if len(ff_regression_df) > 10:  # Ensure we have enough data
+            # Run Fama-French 3-factor regression
+            X = ff_regression_df[ff_predictors]
+            y = ff_regression_df[f'{ticker}_excess']
+            X_const = add_constant(X)
+            ff_model = OLS(y, X_const).fit()
+
+            # Display regression results
+            st.markdown(f"**{ticker} Excess Returns vs Fama-French Factors**")
+
+            # Extract coefficients
+            alpha = ff_model.params.get('const', 0)
+            beta_market = ff_model.params.get('Mkt-RF', 0)
+            beta_size = ff_model.params.get('SMB', 0)
+            beta_value = ff_model.params.get('HML', 0)
+
+            # Display factor loadings
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric("Alpha (α)", f"{alpha*12*100:.2f}%/year")
+                st.caption("Risk-adjusted excess return")
+
+            with col2:
+                st.metric("Market Beta (β)", f"{beta_market:.3f}")
+                market_interp = "More volatile" if beta_market > 1 else "Less volatile" if beta_market < 1 else "Same volatility"
+                st.caption(f"{market_interp} than market")
+
+            with col3:
+                st.metric("Size Factor (SMB)", f"{beta_size:.3f}")
+                size_interp = "Small-cap bias" if beta_size > 0 else "Large-cap bias" if beta_size < 0 else "Size neutral"
+                st.caption(size_interp)
+
+            with col4:
+                st.metric("Value Factor (HML)", f"{beta_value:.3f}")
+                value_interp = "Value bias" if beta_value > 0 else "Growth bias" if beta_value < 0 else "Value neutral"
+                st.caption(value_interp)
+
+            # Model fit
+            st.markdown(f"**Model R²:** {ff_model.rsquared:.3f} ({ff_model.rsquared*100:.1f}% of excess returns explained)")
+
+            # Create time series plot of monthly factor returns
+            fig_ff = go.Figure()
+            for factor in ff_predictors:
+                fig_ff.add_trace(go.Scatter(
+                    x=ff_factors_monthly.index,
+                    y=ff_factors_monthly[factor],
+                    name=factor,
+                    mode='lines'
+                ))
+            fig_ff.update_layout(
+                title="Fama-French Monthly Factor Returns Over Time",
+                xaxis_title="Date",
+                yaxis_title="Factor Returns",
+                template="plotly_white",
+                height=400,
+                hovermode='x unified'
+            )
+            st.plotly_chart(fig_ff, width='stretch')
+
+            # Create bar chart of factor coefficients
+            coef_vals = [beta_market, beta_size, beta_value]
+            t_vals = [ff_model.tvalues.get('Mkt-RF', 0), ff_model.tvalues.get('SMB', 0), ff_model.tvalues.get('HML', 0)]
+            p_vals = [ff_model.pvalues.get('Mkt-RF', 0), ff_model.pvalues.get('SMB', 0), ff_model.pvalues.get('HML', 0)]
+
+            colors = ['red' if pval < 0.05 else 'gray' for pval in p_vals]
+            fig_coef = go.Figure()
+            fig_coef.add_trace(go.Bar(
+                x=['Market (Mkt-RF)', 'Size (SMB)', 'Value (HML)'],
+                y=coef_vals,
+                marker_color=colors,
+                text=[f"{coef:.4f}<br>(t={t:.2f}, p={p:.3f})"
+                      for coef, t, p in zip(coef_vals, t_vals, p_vals)],
+                textposition='auto',
+            ))
+            fig_coef.update_layout(
+                title="Fama-French Factor Coefficients (Monthly Returns)",
+                yaxis_title="Coefficient Value",
+                template="plotly_white",
+                height=400,
+                showlegend=False,
+                shapes=[dict(
+                    type='line',
+                    yref='y',
+                    y0=0,
+                    y1=0,
+                    xref='paper',
+                    x0=0,
+                    x1=1,
+                    line=dict(
+                        color='black',
+                        width=1,
+                        dash='dash'
                     )
-                    st.plotly_chart(fig_ff, width='stretch')
-                    
-                    # Create bar chart of factor coefficients
-                    coef_vals = [beta_market, beta_size, beta_value]
-                    t_vals = [ff_model.tvalues.get('Mkt-RF', 0), ff_model.tvalues.get('SMB', 0), ff_model.tvalues.get('HML', 0)]
-                    p_vals = [ff_model.pvalues.get('Mkt-RF', 0), ff_model.pvalues.get('SMB', 0), ff_model.pvalues.get('HML', 0)]
-                    
-                    colors = ['red' if pval < 0.05 else 'gray' for pval in p_vals]
-                    fig_coef = go.Figure()
-                    fig_coef.add_trace(go.Bar(
-                        x=['Market (Mkt-RF)', 'Size (SMB)', 'Value (HML)'],
-                        y=coef_vals,
-                        marker_color=colors,
-                        text=[f"{coef:.4f}<br>(t={t:.2f}, p={p:.3f})" 
-                              for coef, t, p in zip(coef_vals, t_vals, p_vals)],
-                        textposition='auto',
-                    ))
-                    fig_coef.update_layout(
-                        title="Fama-French Factor Coefficients (Monthly Returns)",
-                        yaxis_title="Coefficient Value",
-                        template="plotly_white",
-                        height=400,
-                        showlegend=False,
-                        shapes=[dict(
-                            type='line',
-                            yref='y',
-                            y0=0,
-                            y1=0,
-                            xref='paper',
-                            x0=0,
-                            x1=1,
-                            line=dict(
-                                color='black',
-                                width=1,
-                                dash='dash'
-                            )
-                        )]
-                    )
-                    st.plotly_chart(fig_coef, width='stretch')
-                    
-                    # Factor interpretations
-                    with st.expander("📚 Factor Interpretation Guide", expanded=False):
-                        st.markdown(f"""
-                        **Alpha (α): {alpha*12*100:.2f}%/year**
-                        - {'Positive' if alpha > 0 else 'Negative'}: Stock {'generates' if alpha > 0 else 'loses'} excess returns beyond factor predictions
-                        
-                        **Market Beta: {beta_market:.3f}**
-                        - {market_interp} than the market
-                        - {'High systematic risk' if beta_market > 1.2 else 'Low systematic risk' if beta_market < 0.8 else 'Moderate systematic risk'}
-                        
-                        **Size Factor (SMB): {beta_size:.3f}**
-                        - {size_interp}
-                        - {'Exposed to small-cap risk premiums' if beta_size > 0.2 else 'Exposed to large-cap stability' if beta_size < -0.2 else 'Size-neutral characteristics'}
-                        
-                        **Value Factor (HML): {beta_value:.3f}**
-                        - {value_interp}
-                        - {'Exposed to value risk premiums' if beta_value > 0.2 else 'Exposed to growth momentum' if beta_value < -0.2 else 'Value-neutral characteristics'}
-                        """)
-                    
-                    # Calculate Fama-French expected return
-                    mkt_rf_ann = ff_factors_monthly['Mkt-RF'].mean() * 12
-                    smb_ann = ff_factors_monthly['SMB'].mean() * 12
-                    hml_ann = ff_factors_monthly['HML'].mean() * 12
-                    rf_annual = 0.025  # 2.5% risk-free rate
-                    
-                    ff_exp_return = (
-                        rf_annual
-                        + beta_market * mkt_rf_ann
-                        + beta_size * smb_ann
-                        + beta_value * hml_ann
-                    )
-                    
-                    st.markdown(f"""
-                    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; padding: 20px; margin: 20px 0; text-align: center; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);'>
-                        <h3 style='margin: 0; font-size: 1.2em;'>Fama-French Expected Annual Return</h3>
-                        <h1 style='margin: 10px 0; font-size: 2.5em; font-weight: bold;'>{ff_exp_return:.2%}</h1>
-                        <p style='margin: 0; opacity: 0.9;'>Based on 3-Factor Model</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                else:
-                    st.warning("Insufficient data for Fama-French factor analysis (need at least 10 monthly observations).")
-                    
+                )]
+            )
+            st.plotly_chart(fig_coef, width='stretch')
+
+            # Factor interpretations
+            with st.expander("📚 Factor Interpretation Guide", expanded=False):
+                st.markdown(f"""
+                **Alpha (α): {alpha*12*100:.2f}%/year**
+                - {'Positive' if alpha > 0 else 'Negative'}: Stock {'generates' if alpha > 0 else 'loses'} excess returns beyond factor predictions
+
+                **Market Beta: {beta_market:.3f}**
+                - {market_interp} than the market
+                - {'High systematic risk' if beta_market > 1.2 else 'Low systematic risk' if beta_market < 0.8 else 'Moderate systematic risk'}
+
+                **Size Factor (SMB): {beta_size:.3f}**
+                - {size_interp}
+                - {'Exposed to small-cap risk premiums' if beta_size > 0.2 else 'Exposed to large-cap stability' if beta_size < -0.2 else 'Size-neutral characteristics'}
+
+                **Value Factor (HML): {beta_value:.3f}**
+                - {value_interp}
+                - {'Exposed to value risk premiums' if beta_value > 0.2 else 'Exposed to growth momentum' if beta_value < -0.2 else 'Value-neutral characteristics'}
+                """)
+
+            # Calculate Fama-French expected return
+            mkt_rf_ann = ff_factors_monthly['Mkt-RF'].mean() * 12
+            smb_ann = ff_factors_monthly['SMB'].mean() * 12
+            hml_ann = ff_factors_monthly['HML'].mean() * 12
+            rf_annual = 0.025  # 2.5% risk-free rate
+
+            ff_exp_return = (
+                rf_annual
+                + beta_market * mkt_rf_ann
+                + beta_size * smb_ann
+                + beta_value * hml_ann
+            )
+
+            st.markdown(f"""
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; padding: 20px; margin: 20px 0; text-align: center; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);'>
+                <h3 style='margin: 0; font-size: 1.2em;'>Fama-French Expected Annual Return</h3>
+                <h1 style='margin: 10px 0; font-size: 2.5em; font-weight: bold;'>{ff_exp_return:.2%}</h1>
+                <p style='margin: 0; opacity: 0.9;'>Based on 3-Factor Model</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        else:
+            st.warning("Insufficient data for Fama-French factor analysis (need at least 10 monthly observations).")
+
     except Exception as e:
         st.error(f"Could not load Fama-French factors: {str(e)[:100]}...")
         st.info("Fama-French factor analysis requires internet connection to download factor data from Ken French's website.")
@@ -928,7 +997,7 @@ elif page == ":bar_chart: Stock Correlation":
     st.header(":bar_chart: Stock Correlation Analysis")
 
     # User input for a single stock ticker (moved to sidebar)
-    st.sidebar.subheader("Stock Input")
+    st.sidebar.markdown("#### 🔎 Stock Input")
     corr_ticker = st.sidebar.text_input("Enter a stock ticker for correlation analysis:", "AAPL").upper()
     corr_start_date = st.sidebar.date_input("Start Date", value=date(2020, 1, 1), key="corr_start")
     corr_end_date = st.sidebar.date_input("End Date", value=date.today(), key="corr_end")
@@ -1338,7 +1407,14 @@ elif page == ":bar_chart: Stock Correlation":
                 'p-value': None,
                 'Stationary': f'Error: {e}'
             }
-    st.dataframe(pd.DataFrame(stationarity_results).T)
+    st.dataframe(
+        pd.DataFrame(stationarity_results).T,
+        width='stretch',
+        column_config={
+            "ADF Statistic": st.column_config.NumberColumn(format="%.4f"),
+            "p-value": st.column_config.NumberColumn(format="%.4g"),
+        },
+    )
 
 
     # --- Rolling Correlation Visualization ---
@@ -1467,8 +1543,7 @@ elif page == ":bar_chart: Stock Correlation":
     
     st.markdown("#### 📈 Custom Rolling Correlation")
     window = st.number_input("Select rolling window size (days):", min_value=5, max_value=250, value=60, step=1, help="Number of days for rolling correlation window.")
-    
-    import plotly.graph_objs as go
+
     fig = go.Figure()
     correlation_stats = []
     
@@ -1744,7 +1819,7 @@ elif page == ":bar_chart: Stock Correlation":
     weather_variables = [var for var in selected_vars if 'Temperature' in var or 'Rainfall' in var]
     
     if weather_variables:
-        st.markdown("#### � Normalized Weather Patterns")
+        st.markdown("#### 🌦️ Normalized Weather Patterns")
         st.markdown("Weather data normalized to 0-1 scale for pattern comparison across regions")
         
         # Create a normalized weather comparison (all variables scaled 0-1)
@@ -1809,16 +1884,11 @@ elif page == ":bar_chart: Stock Correlation":
     # Enhanced ML Functions from ML_Stock_Predictor
     
     def load_stock_data(ticker, start_date, end_date):
-        """Load stock data using yfinance"""
-        try:
-            data = yf.download(ticker, start=start_date, end=end_date)
-            if data is None or data.empty:
-                return None
-            data = data.reset_index()
-            return data
-        except Exception as e:
-            st.warning(f"Could not load data for {ticker}: {str(e)}")
-            return None
+        """Load stock data for the ML section, reusing the same cached,
+        retrying fetch as the rest of the app instead of a bare yfinance
+        call (which had no retry/backoff and would crash this page on any
+        transient Yahoo rate-limit)."""
+        return load_data(ticker, start_date, end_date)
     
     def create_correlation_features(main_data, correlation_data, window=60):
         """Create correlation-based features"""
@@ -1919,35 +1989,46 @@ elif page == ":bar_chart: Stock Correlation":
         return feature_data, feature_columns
 
     def create_lstm_sequences(data, feature_columns, target_column, sequence_length=60, prediction_days=5):
-        """Create sequences for LSTM training"""
+        """Create sequences for LSTM training.
+
+        `target_column` already holds the prediction_days-ahead return for
+        each row (built upstream in prepare_ml_features), so the label for
+        a sequence ending at row i-1 is target[i-1] directly — indexing
+        target[i + prediction_days - 1] here would shift the label another
+        prediction_days-1 rows further into the future on top of that,
+        training the model against a horizon it was never told about.
+        Also returns the date index aligned to each sequence's label so
+        callers can join RF/LSTM predictions by date instead of position.
+        """
         if not DEEP_LEARNING_AVAILABLE:
-            return None, None, None, None
-        
+            return None, None, None, None, None
+
         # Prepare data
         feature_data = data[feature_columns].values
         target_data = data[target_column].values
-        
+
         # Scale features
         feature_scaler = MinMaxScaler()
         target_scaler = MinMaxScaler()
-        
+
         scaled_features = feature_scaler.fit_transform(feature_data)
         scaled_targets = target_scaler.fit_transform(target_data.reshape(-1, 1)).flatten()
-        
+
         # Create sequences
         X_sequences = []
         y_sequences = []
-        
-        for i in range(sequence_length, len(scaled_features) - prediction_days + 1):
-            # Features: sequence_length timesteps of features
-            X_sequences.append(scaled_features[i-sequence_length:i])
-            # Target: future return after prediction_days
-            y_sequences.append(scaled_targets[i + prediction_days - 1])
-        
+
+        for i in range(sequence_length, len(scaled_features) + 1):
+            # Features: sequence_length timesteps ending at row i-1
+            X_sequences.append(scaled_features[i - sequence_length:i])
+            # Target: the (already horizon-shifted) label for that last row
+            y_sequences.append(scaled_targets[i - 1])
+
         X_sequences = np.array(X_sequences)
         y_sequences = np.array(y_sequences)
-        
-        return X_sequences, y_sequences, feature_scaler, target_scaler
+        sequence_dates = data.index[sequence_length - 1:]
+
+        return X_sequences, y_sequences, sequence_dates, feature_scaler, target_scaler
 
     def build_lstm_model(input_shape, lstm_units=[50, 30], dropout_rate=0.2, learning_rate=0.001):
         """Build LSTM model architecture"""
@@ -2488,12 +2569,12 @@ elif page == ":bar_chart: Stock Correlation":
                         for i, var in enumerate(financial_vars):
                             ticker_symbol = etf_map[var]
                             progress_bar.progress((i + 1) / len(financial_vars))
-                            corr_data = load_stock_data(ticker_symbol, corr_start_date, corr_end_date)
-                            if corr_data is not None:
-                                corr_data['Date'] = pd.to_datetime(corr_data['Date'])
-                                corr_data.set_index('Date', inplace=True)
-                                corr_data['log_returns'] = np.log(corr_data['Close'] / corr_data['Close'].shift(1))
-                                correlation_data[ticker_symbol] = corr_data
+                            instrument_data = load_stock_data(ticker_symbol, corr_start_date, corr_end_date)
+                            if instrument_data is not None:
+                                instrument_data['Date'] = pd.to_datetime(instrument_data['Date'])
+                                instrument_data.set_index('Date', inplace=True)
+                                instrument_data['log_returns'] = np.log(instrument_data['Close'] / instrument_data['Close'].shift(1))
+                                correlation_data[ticker_symbol] = instrument_data
                         progress_bar.empty()
                     else:
                         st.info("💡 **Tip**: Select financial instruments (ETFs, indices) from the variables list for enhanced ML features. Weather data is not used in ML models.")
@@ -2546,11 +2627,34 @@ elif page == ":bar_chart: Stock Correlation":
                 
                 st.success(f"✅ Prepared {len(ml_data)} samples with {len(feature_columns)} features")
                 
+                # ---- Shared time-based split ----------------------------------
+                # One train/test date boundary used by every model, so that
+                # Random Forest and LSTM predictions land on the same dates
+                # and can be legitimately combined for the ensemble instead
+                # of being zipped together by row position.
+                # The target at row t spans t .. t+prediction_days, so rows
+                # near the boundary share their target window across the
+                # split — the embargo drops them from train.
+                embargo = max(int(prediction_days), 1)
+                split_at = int(len(ml_data) * 0.85)
+                test_start = split_at + embargo
+
+                if len(ml_data) - test_start < 10:
+                    st.error(
+                        f"Only {len(ml_data) - test_start} test rows remain after a "
+                        f"{embargo}-day embargo. Extend the date range or reduce the "
+                        "prediction horizon."
+                    )
+                    st.stop()
+
+                test_dates = ml_data.index[test_start:]
+
                 # Model training based on selection
                 rf_model, rf_pred, rf_r2, rf_mse, rf_directional = None, None, None, None, None
                 X_selected, selected_features = None, []
                 avg_cv_score, cv_std, avg_cv_directional = 0, 0, 0.5
-                
+                rf_pred_series, y_test_series = None, None
+
                 if selected_model == "Random Forest" or "Ensemble" in selected_model:
                     # ---- Leakage-free feature selection --------------------------
                     # The selector must never see rows it will later be scored on.
@@ -2559,20 +2663,8 @@ elif page == ":bar_chart: Stock Correlation":
                     X_all = np.array(ml_data[feature_columns].values, dtype=np.float64)
                     y_all = np.array(ml_data['target'].values, dtype=np.float64)
 
-                    # The target at row t spans t .. t+prediction_days, so rows near
-                    # the boundary share their target window across the split.
-                    embargo = max(int(prediction_days), 1)
-                    split_at = int(len(X_all) * 0.85)
-
                     X_dev, y_dev = X_all[:split_at], y_all[:split_at]
-                    X_test, y_test = X_all[split_at + embargo:], y_all[split_at + embargo:]
-
-                    if len(X_test) < 10:
-                        st.error(
-                            f"Only {len(X_test)} test rows remain after a {embargo}-day embargo. "
-                            "Extend the date range or reduce the prediction horizon."
-                        )
-                        st.stop()
+                    X_test, y_test = X_all[test_start:], y_all[test_start:]
 
                     def select_features(X_fit, y_fit, n_select):
                         """Rank importance on this slice ONLY and return column indices."""
@@ -2592,14 +2684,15 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info("Training Random Forest (features re-selected inside each fold)...")
 
                     for fold, (train_idx, val_idx) in enumerate(tscv.split(X_dev)):
-                        if len(train_idx) < 100:
+                        # drop the tail of train whose target window reaches into
+                        # val; skip the fold outright if that leaves too little to
+                        # train on (computed in one step so a future change to the
+                        # embargo size or the 100-row floor can't silently skip the
+                        # trim while still keeping the fold, reintroducing leakage)
+                        trimmed_len = len(train_idx) - embargo
+                        if trimmed_len < 100:
                             continue
-
-                        # drop the tail of train whose target window reaches into val
-                        if len(train_idx) > embargo:
-                            train_idx = train_idx[:-embargo]
-                        if len(train_idx) < 100:
-                            continue
+                        train_idx = train_idx[:trimmed_len]
 
                         X_tr, y_tr = X_dev[train_idx], y_dev[train_idx]
                         X_val, y_val = X_dev[val_idx], y_dev[val_idx]
@@ -2654,6 +2747,8 @@ elif page == ":bar_chart: Stock Correlation":
                     rf_r2 = r2_score(y_test, rf_pred)
                     rf_mse = mean_squared_error(y_test, rf_pred)
                     rf_directional = np.mean(np.sign(y_test) == np.sign(rf_pred))
+                    rf_pred_series = pd.Series(rf_pred, index=test_dates)
+                    y_test_series = pd.Series(y_test, index=test_dates)
 
                     st.caption(
                         f"Walk-forward CV R2 {avg_cv_score:.3f} (sd {cv_std:.3f}) over "
@@ -2665,75 +2760,91 @@ elif page == ":bar_chart: Stock Correlation":
                 lstm_r2, lstm_mse, lstm_directional, lstm_model, lstm_history = None, None, None, None, None
                 lstm_pred, y_lstm_test_original = None, None
                 feature_scaler, target_scaler = None, None
-                
+                lstm_pred_series = None
+
                 if ("LSTM" in selected_model or "Ensemble" in selected_model) and DEEP_LEARNING_AVAILABLE:
                     st.info("Training LSTM Neural Network...")
-                    
+
                     # Create LSTM sequences
-                    X_lstm, y_lstm, feature_scaler, target_scaler = create_lstm_sequences(
-                        ml_data, feature_columns, 'target', 
-                        sequence_length=sequence_length, 
+                    X_lstm, y_lstm, lstm_dates, feature_scaler, target_scaler = create_lstm_sequences(
+                        ml_data, feature_columns, 'target',
+                        sequence_length=sequence_length,
                         prediction_days=prediction_days
                     )
-                    
-                    if (X_lstm is not None and y_lstm is not None and 
-                        feature_scaler is not None and target_scaler is not None and 
+
+                    if (X_lstm is not None and y_lstm is not None and lstm_dates is not None and
+                        feature_scaler is not None and target_scaler is not None and
                         len(X_lstm) > 100):
-                        
-                        # Split data for LSTM
-                        lstm_train_size = int(len(X_lstm) * 0.8)
-                        lstm_val_size = int(len(X_lstm) * 0.1)
-                        
-                        X_lstm_train = X_lstm[:lstm_train_size]
-                        y_lstm_train = y_lstm[:lstm_train_size]
-                        X_lstm_val = X_lstm[lstm_train_size:lstm_train_size + lstm_val_size]
-                        y_lstm_val = y_lstm[lstm_train_size:lstm_train_size + lstm_val_size]
-                        X_lstm_test = X_lstm[lstm_train_size + lstm_val_size:]
-                        y_lstm_test = y_lstm[lstm_train_size + lstm_val_size:]
-                        
-                        # Train LSTM
-                        lstm_model, lstm_history = train_lstm_model(
-                            X_lstm_train, y_lstm_train, X_lstm_val, y_lstm_val,
-                            epochs=epochs, batch_size=batch_size
-                        )
-                        
-                        if lstm_model is not None and len(X_lstm_test) > 0:
-                            try:
-                                # LSTM predictions
-                                lstm_pred_scaled = lstm_model.predict(X_lstm_test, verbose=0)
-                                lstm_pred = target_scaler.inverse_transform(lstm_pred_scaled.reshape(-1, 1)).flatten()
-                                y_lstm_test_original = target_scaler.inverse_transform(y_lstm_test.reshape(-1, 1)).flatten()
-                                
-                                lstm_r2 = r2_score(y_lstm_test_original, lstm_pred)
-                                lstm_mse = mean_squared_error(y_lstm_test_original, lstm_pred)
-                                lstm_directional = np.mean(np.sign(y_lstm_test_original) == np.sign(lstm_pred))
-                            except Exception as e:
-                                st.warning(f"LSTM prediction failed: {str(e)}")
-                                lstm_model = None
+
+                        # Split on the same date boundary as Random Forest so
+                        # both models' test predictions land on shared dates.
+                        test_mask = lstm_dates >= ml_data.index[test_start]
+                        X_trainval, y_trainval = X_lstm[~test_mask], y_lstm[~test_mask]
+                        X_lstm_test, y_lstm_test = X_lstm[test_mask], y_lstm[test_mask]
+                        dates_lstm_test = lstm_dates[test_mask]
+
+                        val_size = max(1, int(len(X_trainval) * 0.1))
+                        X_lstm_train = X_trainval[:-val_size]
+                        y_lstm_train = y_trainval[:-val_size]
+                        X_lstm_val = X_trainval[-val_size:]
+                        y_lstm_val = y_trainval[-val_size:]
+
+                        if len(X_lstm_train) < 50 or len(X_lstm_val) < 5 or len(X_lstm_test) < 5:
+                            st.warning("Not enough data for LSTM training after the date-aligned train/test split.")
+                        else:
+                            # Train LSTM
+                            lstm_model, lstm_history = train_lstm_model(
+                                X_lstm_train, y_lstm_train, X_lstm_val, y_lstm_val,
+                                epochs=epochs, batch_size=batch_size
+                            )
+
+                            if lstm_model is not None and len(X_lstm_test) > 0:
+                                try:
+                                    # LSTM predictions
+                                    lstm_pred_scaled = lstm_model.predict(X_lstm_test, verbose=0)
+                                    lstm_pred = target_scaler.inverse_transform(lstm_pred_scaled.reshape(-1, 1)).flatten()
+                                    y_lstm_test_original = target_scaler.inverse_transform(y_lstm_test.reshape(-1, 1)).flatten()
+
+                                    lstm_r2 = r2_score(y_lstm_test_original, lstm_pred)
+                                    lstm_mse = mean_squared_error(y_lstm_test_original, lstm_pred)
+                                    lstm_directional = np.mean(np.sign(y_lstm_test_original) == np.sign(lstm_pred))
+                                    lstm_pred_series = pd.Series(lstm_pred, index=dates_lstm_test)
+                                except Exception as e:
+                                    st.warning(f"LSTM prediction failed: {str(e)}")
+                                    lstm_model = None
                     else:
                         st.warning("Not enough data for LSTM training after sequence creation.")
-                
-                # Ensemble predictions
-                if ("Ensemble" in selected_model and rf_model is not None and lstm_model is not None and 
-                    rf_pred is not None and lstm_pred is not None and 
-                    len(rf_pred) > 0 and len(lstm_pred) > 0):
-                    
-                    # Align prediction lengths
-                    min_length = min(len(rf_pred), len(lstm_pred))
-                    rf_pred_aligned = rf_pred[:min_length]
-                    lstm_pred_aligned = lstm_pred[:min_length]
-                    y_test_aligned = y_test[:min_length]
-                    
-                    # Simple ensemble: average predictions
-                    ensemble_pred = (rf_pred_aligned + lstm_pred_aligned) / 2
-                    ensemble_r2 = r2_score(y_test_aligned, ensemble_pred)
-                    ensemble_mse = mean_squared_error(y_test_aligned, ensemble_pred)
-                    ensemble_directional = np.mean(np.sign(y_test_aligned) == np.sign(ensemble_pred))
-                    
-                    # Use ensemble metrics
-                    r2, mse, directional_accuracy = ensemble_r2, ensemble_mse, ensemble_directional
-                    y_pred = ensemble_pred
-                    y_test = y_test_aligned
+
+                # Ensemble predictions — joined by date, not by row position,
+                # since Random Forest's and LSTM's test sets can differ in
+                # length even though they share the same start boundary
+                # (the LSTM needs `sequence_length` prior rows of context).
+                if ("Ensemble" in selected_model and rf_model is not None and lstm_model is not None and
+                    rf_pred_series is not None and lstm_pred_series is not None):
+
+                    common_dates = rf_pred_series.index.intersection(lstm_pred_series.index)
+
+                    if len(common_dates) >= 5:
+                        rf_common = rf_pred_series.loc[common_dates].to_numpy()
+                        lstm_common = lstm_pred_series.loc[common_dates].to_numpy()
+                        y_common = y_test_series.loc[common_dates].to_numpy()
+
+                        ensemble_pred = (rf_common + lstm_common) / 2
+                        ensemble_r2 = r2_score(y_common, ensemble_pred)
+                        ensemble_mse = mean_squared_error(y_common, ensemble_pred)
+                        ensemble_directional = np.mean(np.sign(y_common) == np.sign(ensemble_pred))
+
+                        r2, mse, directional_accuracy = ensemble_r2, ensemble_mse, ensemble_directional
+                        y_pred = ensemble_pred
+                        y_test = y_common
+                        st.caption(f"Ensemble evaluated on {len(common_dates)} dates shared by both models' test windows.")
+                    else:
+                        st.warning(
+                            "Random Forest and LSTM test windows barely overlap "
+                            f"({len(common_dates)} shared dates) — showing Random Forest results instead of an ensemble average."
+                        )
+                        r2, mse, directional_accuracy = rf_r2, rf_mse, rf_directional
+                        y_pred = rf_pred
                 elif "LSTM" in selected_model and lstm_model is not None and lstm_pred is not None:
                     # Use LSTM metrics
                     r2, mse, directional_accuracy = lstm_r2, lstm_mse, lstm_directional
@@ -3276,13 +3387,17 @@ elif page == ":bar_chart: Stock Correlation":
         test_df = corr_df[[granger_y, granger_x]].dropna()
         try:
             st.write(f"Testing if {granger_x} Granger-causes {granger_y} (lags 1 to {max_lag})")
-            gc_results = grangercausalitytests(test_df, max_lag, verbose=False)
+            try:
+                # statsmodels 0.15 dropped the `verbose` kwarg (it used to
+                # print its own table to stdout; we build our own below).
+                gc_results = grangercausalitytests(test_df, max_lag, verbose=False)
+            except TypeError:
+                gc_results = grangercausalitytests(test_df, max_lag)
             gc_table = []
             for lag in range(1, max_lag+1):
                 pval = gc_results[lag][0]['ssr_ftest'][1]
                 significant = "Yes" if pval < 0.05 else "No"
                 gc_table.append({"Lag": lag, "p-value": pval, "Significant": significant})
-            import pandas as pd
             # Only show first 3 and last 3 lags
             if max_lag > 6:
                 display_table = gc_table[:3] + gc_table[-3:]
