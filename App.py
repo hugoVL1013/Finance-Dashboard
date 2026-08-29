@@ -2552,46 +2552,61 @@ elif page == ":bar_chart: Stock Correlation":
                 avg_cv_score, cv_std, avg_cv_directional = 0, 0, 0.5
                 
                 if selected_model == "Random Forest" or "Ensemble" in selected_model:
-                    # Split features and target for Random Forest
-                    X = np.array(ml_data[feature_columns].values, dtype=np.float64)
-                    y = np.array(ml_data['target'].values, dtype=np.float64)
-                    
-                    # Time series split for validation
-                    tscv = TimeSeriesSplit(n_splits=5, test_size=None)
+                    # ---- Leakage-free feature selection --------------------------
+                    # The selector must never see rows it will later be scored on.
+                    # Previously it was fitted on all of X before the split, so the
+                    # chosen features already knew about the holdout period.
+                    X_all = np.array(ml_data[feature_columns].values, dtype=np.float64)
+                    y_all = np.array(ml_data['target'].values, dtype=np.float64)
+
+                    # The target at row t spans t .. t+prediction_days, so rows near
+                    # the boundary share their target window across the split.
+                    embargo = max(int(prediction_days), 1)
+                    split_at = int(len(X_all) * 0.85)
+
+                    X_dev, y_dev = X_all[:split_at], y_all[:split_at]
+                    X_test, y_test = X_all[split_at + embargo:], y_all[split_at + embargo:]
+
+                    if len(X_test) < 10:
+                        st.error(
+                            f"Only {len(X_test)} test rows remain after a {embargo}-day embargo. "
+                            "Extend the date range or reduce the prediction horizon."
+                        )
+                        st.stop()
+
+                    def select_features(X_fit, y_fit, n_select):
+                        """Rank importance on this slice ONLY and return column indices."""
+                        sel = RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=-1)
+                        sel.fit(X_fit, y_fit)
+                        ranked = np.argsort(sel.feature_importances_)[::-1]
+                        return np.sort(ranked[:n_select])
+
+                    n_features_to_select = max(20, min(len(feature_columns) // 2, 50))
+                    n_features_to_select = min(n_features_to_select, X_all.shape[1])
+
+                    # ---- Cross-validation, re-selecting inside every fold ---------
+                    tscv = TimeSeriesSplit(n_splits=5)
                     cv_scores = []
                     cv_directional_accuracies = []
-                    
-                    # Feature selection based on importance
-                    st.info("Training Random Forest with feature selection...")
-                    
-                    # Quick Random Forest to get feature importance for selection
-                    rf_selector = RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=-1)
-                    rf_selector.fit(X, y)
-                    
-                    # Select top features based on importance
-                    feature_importance_scores = rf_selector.feature_importances_
-                    feature_importance_df = pd.DataFrame({
-                        'feature': feature_columns,
-                        'importance': feature_importance_scores
-                    }).sort_values('importance', ascending=False)
-                    
-                    # Select top features
-                    n_features_to_select = max(20, min(len(feature_columns) // 2, 50))
-                    selected_feature_indices = feature_importance_df.head(n_features_to_select).index.tolist()
-                    selected_features = [feature_columns[i] for i in selected_feature_indices]
-                    
-                    # Use only selected features
-                    X_selected = X[:, selected_feature_indices]
-                    
-                    # Cross-validation
-                    for fold, (train_idx, val_idx) in enumerate(tscv.split(X_selected)):
+
+                    st.info("Training Random Forest (features re-selected inside each fold)...")
+
+                    for fold, (train_idx, val_idx) in enumerate(tscv.split(X_dev)):
                         if len(train_idx) < 100:
                             continue
-                            
-                        X_train_fold, X_val_fold = X_selected[train_idx], X_selected[val_idx]
-                        y_train_fold, y_val_fold = y[train_idx], y[val_idx]
-                        
-                        # Train model
+
+                        # drop the tail of train whose target window reaches into val
+                        if len(train_idx) > embargo:
+                            train_idx = train_idx[:-embargo]
+                        if len(train_idx) < 100:
+                            continue
+
+                        X_tr, y_tr = X_dev[train_idx], y_dev[train_idx]
+                        X_val, y_val = X_dev[val_idx], y_dev[val_idx]
+
+                        # the fix: selection sees this fold's training rows and nothing else
+                        fold_cols = select_features(X_tr, y_tr, n_features_to_select)
+
                         rf_fold = RandomForestRegressor(
                             n_estimators=min(n_estimators, 200),
                             max_depth=max_depth,
@@ -2601,25 +2616,27 @@ elif page == ":bar_chart: Stock Correlation":
                             random_state=42 + fold,
                             n_jobs=-1
                         )
-                        rf_fold.fit(X_train_fold, y_train_fold)
-                        
-                        # Validate
-                        y_pred_fold = rf_fold.predict(X_val_fold)
-                        fold_r2 = r2_score(y_val_fold, y_pred_fold)
-                        fold_directional = np.mean(np.sign(y_val_fold) == np.sign(y_pred_fold))
-                        
-                        cv_scores.append(fold_r2)
-                        cv_directional_accuracies.append(fold_directional)
-                    
+                        rf_fold.fit(X_tr[:, fold_cols], y_tr)
+
+                        y_pred_fold = rf_fold.predict(X_val[:, fold_cols])
+                        cv_scores.append(r2_score(y_val, y_pred_fold))
+                        cv_directional_accuracies.append(
+                            np.mean(np.sign(y_val) == np.sign(y_pred_fold))
+                        )
+
                     avg_cv_score = np.mean(cv_scores) if cv_scores else 0
                     cv_std = np.std(cv_scores) if cv_scores else 0
                     avg_cv_directional = np.mean(cv_directional_accuracies) if cv_directional_accuracies else 0.5
-                    
-                    # Final Random Forest training
-                    train_size = int(len(X_selected) * 0.85)
-                    X_train, X_test = X_selected[:train_size], X_selected[train_size:]
-                    y_train, y_test = y[:train_size], y[train_size:]
-                    
+
+                    # ---- Final model: select on dev only, score on untouched test --
+                    final_cols = select_features(X_dev, y_dev, n_features_to_select)
+                    selected_features = [feature_columns[i] for i in final_cols]
+
+                    # Applying dev-chosen columns to the full matrix is not leakage:
+                    # the CHOICE of columns never saw the test rows. This is used
+                    # only for the live prediction row further down.
+                    X_selected = X_all[:, final_cols]
+
                     rf_model = RandomForestRegressor(
                         n_estimators=min(n_estimators * 2, 300),
                         max_depth=max_depth,
@@ -2631,13 +2648,18 @@ elif page == ":bar_chart: Stock Correlation":
                         random_state=42,
                         n_jobs=-1
                     )
-                    rf_model.fit(X_train, y_train)
-                    
-                    # Random Forest predictions
-                    rf_pred = rf_model.predict(X_test)
+                    rf_model.fit(X_dev[:, final_cols], y_dev)
+
+                    rf_pred = rf_model.predict(X_test[:, final_cols])
                     rf_r2 = r2_score(y_test, rf_pred)
                     rf_mse = mean_squared_error(y_test, rf_pred)
                     rf_directional = np.mean(np.sign(y_test) == np.sign(rf_pred))
+
+                    st.caption(
+                        f"Walk-forward CV R2 {avg_cv_score:.3f} (sd {cv_std:.3f}) over "
+                        f"{len(cv_scores)} folds. Features re-selected per fold, "
+                        f"{embargo}-day embargo between train and validation."
+                    )
                 
                 # LSTM Training
                 lstm_r2, lstm_mse, lstm_directional, lstm_model, lstm_history = None, None, None, None, None
