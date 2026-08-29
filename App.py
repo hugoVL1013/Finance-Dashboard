@@ -79,10 +79,14 @@ div[data-testid="stMetric"] {
 }
 div[data-testid="stMetricLabel"] { font-weight: 600; opacity: 0.75; }
 
-/* Sidebar */
+/* Sidebar — uses Streamlit's own theme variable rather than a hard-coded
+   light color, so it stays correct whether the theme comes from the OS
+   or from someone manually toggling dark mode in Streamlit's own menu.
+   A hard-coded light background here previously left sidebar text
+   (colored by whichever theme is active) invisible in dark mode. */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #f7f7fb 0%, #ffffff 100%);
-    border-right: 1px solid rgba(0,0,0,0.06);
+    background: var(--secondary-background-color);
+    border-right: 1px solid rgba(120,120,140,0.18);
 }
 section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h3 { font-weight: 700 !important; }
 
