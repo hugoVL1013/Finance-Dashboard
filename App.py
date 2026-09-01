@@ -193,6 +193,42 @@ def load_data(ticker_symbol, start, end):
     data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
     return data
 
+
+# --- Risk-free rate ---------------------------------------------------------
+# The risk-free leg of the Sharpe, CAPM and Fama-French calculations used to be
+# a hard-coded 2.5%. It is now sourced live from the 30-year US Treasury yield
+# (Yahoo ^TYX) so the models reflect the actual rate environment, with a fixed
+# fallback if the quote can't be fetched (network / rate-limit) so nothing
+# crashes.
+RISK_FREE_FALLBACK = 0.025  # annual decimal, used only when the live fetch fails
+
+
+@st.cache_data(ttl=3600)
+def _fetch_risk_free_rate():
+    """Latest 30-year US Treasury yield (Yahoo ^TYX) as an annual decimal,
+    e.g. 0.045 for 4.5%. Returns None on failure so callers can fall back."""
+    hist = _yf_retry(lambda: yf.Ticker("^TYX").history(period="5d"))
+    if hist is None or getattr(hist, "empty", True) or "Close" not in hist:
+        return None
+    closes = hist["Close"].dropna()
+    if closes.empty:
+        return None
+    latest = float(closes.iloc[-1])
+    # ^TYX is normally quoted directly in percent (e.g. 4.5). Guard against
+    # feeds that report the yield scaled x10 (e.g. 45.0 for 4.5%).
+    if latest > 25:
+        latest /= 10.0
+    if latest <= 0 or latest > 20:
+        return None  # implausible yield -> treat as bad data
+    return latest / 100.0
+
+
+def get_risk_free_rate():
+    """Annual risk-free rate as a decimal: the live 30-year Treasury yield when
+    available, otherwise the fixed fallback."""
+    rate = _fetch_risk_free_rate()
+    return rate if rate is not None else RISK_FREE_FALLBACK
+
 # Enhanced weather data loading with caching and batch processing
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def test_weather_api():
@@ -577,7 +613,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
     # Add Rolling Sharpe Ratio
     with st.container(border=True):
         st.subheader(":chart_with_upwards_trend: Sharpe Ratio Over Time (90-day Rolling)")
-        risk_free_rate_daily = 0.025 / 252  # Daily risk-free rate (2.5% annual)
+        risk_free_rate_daily = get_risk_free_rate() / 252  # live 30Y Treasury, daily equivalent
         data['Rolling Return'] = data['Returns'].rolling(window=90).mean()
         data['Rolling Std'] = data['Returns'].rolling(window=90).std()
         # Correct Sharpe ratio: annualized excess return divided by annualized volatility
@@ -715,8 +751,8 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
     # — Beta, Sharpe Ratio & CAPM — 
     st.subheader("📊 Beta, Sharpe Ratio & CAPM Expected Return vs Market")
 
-    # Consistent risk-free rate (2.5% annual)
-    risk_free_rate_annual = 0.025  # 2.5% annual
+    # Risk-free rate sourced live from the 30-year US Treasury yield (^TYX)
+    risk_free_rate_annual = get_risk_free_rate()
     risk_free_rate_daily = risk_free_rate_annual / 252  # Daily equivalent
     
     # Calculate equity risk premium dynamically from actual market return
@@ -755,7 +791,13 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
         st.metric("Annualized Sharpe", f"{sharpe:.2f}" if sharpe is not None and np.isfinite(sharpe) else "N/A")
     with col3:
         st.metric("CAPM Expected Return", f"{capm_return*100:.2f}%" if capm_return is not None and np.isfinite(capm_return) else "N/A")
-    
+
+    # Be transparent about the risk-free assumption feeding Sharpe and CAPM.
+    if _fetch_risk_free_rate() is not None:
+        st.caption(f"Risk-free rate: 30-year US Treasury yield (^TYX), currently {risk_free_rate_annual*100:.2f}% — sourced live.")
+    else:
+        st.caption(f"Risk-free rate: {risk_free_rate_annual*100:.2f}% (fallback — live 30-year Treasury quote unavailable).")
+
     # Add visual separator before Fama French analysis
     st.markdown("---")
     st.markdown("")  # Add some spacing
@@ -971,7 +1013,7 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
             mkt_rf_ann = ff_factors_monthly['Mkt-RF'].mean() * 12
             smb_ann = ff_factors_monthly['SMB'].mean() * 12
             hml_ann = ff_factors_monthly['HML'].mean() * 12
-            rf_annual = 0.025  # 2.5% risk-free rate
+            rf_annual = get_risk_free_rate()  # live 30-year Treasury yield
 
             ff_exp_return = (
                 rf_annual
