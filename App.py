@@ -776,7 +776,9 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
                 beta = None
             else:
                 beta = LinearRegression().fit(X, y).coef_[0]
-            sharpe = (df["LogR"].mean() / df["LogR"].std()) * np.sqrt(252) if df["LogR"].std() != 0 else None
+            # Proper Sharpe: excess return over the risk-free rate, not raw
+            # return / vol. Subtract the daily risk-free before annualising.
+            sharpe = ((df["LogR"].mean() - risk_free_rate_daily) / df["LogR"].std()) * np.sqrt(252) if df["LogR"].std() != 0 else None
             capm_return = risk_free_rate_annual + beta * equity_risk_premium if beta is not None else None
     else:
         beta = None
