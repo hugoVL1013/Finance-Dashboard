@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asset Management Early Careers Tracker</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#1a1d21; --muted:#5b6470;
+    --line:#e4e7ec; --line2:#eef1f4; --accent:#3b5bdb; --accent-soft:#edf0ff;
+    --open-bg:#e6f6ec; --open-ink:#1a7a3d; --open-dot:#22a355;
+    --soon-bg:#fff4e0; --soon-ink:#9a6400; --soon-dot:#e8930c;
+    --closed-bg:#fdeaea; --closed-ink:#b02525; --closed-dot:#d84040;
+    --adhoc-bg:#eef1f4; --adhoc-ink:#4a5563; --adhoc-dot:#8a95a3;
+    --check-bg:#eef1f4; --check-ink:#5b6470; --check-dot:#c2c9d2;
+    --applied-bg:#eee9fb; --applied-ink:#6741c9; --applied-dot:#8a63e0;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#0e1116; --panel:#161a21; --ink:#e8ebef; --muted:#9aa4b0;
+      --line:#262c36; --line2:#20252e; --accent:#7c94f2; --accent-soft:#1c2333;
+      --open-bg:#12301f; --open-ink:#57d98a; --open-dot:#2fae63;
+      --soon-bg:#33260c; --soon-ink:#f2bd55; --soon-dot:#e8930c;
+      --closed-bg:#3a1c1c; --closed-ink:#f08a8a; --closed-dot:#d84040;
+      --adhoc-bg:#20252e; --adhoc-ink:#9aa4b0; --adhoc-dot:#6b7482;
+      --check-bg:#20252e; --check-ink:#8a95a3; --check-dot:#3a424e;
+      --applied-bg:#241a3d; --applied-ink:#b39bf0; --applied-dot:#8a63e0;
+      --shadow:0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e1116; --panel:#161a21; --ink:#e8ebef; --muted:#9aa4b0;
+    --line:#262c36; --line2:#20252e; --accent:#7c94f2; --accent-soft:#1c2333;
+    --open-bg:#12301f; --open-ink:#57d98a; --open-dot:#2fae63;
+    --soon-bg:#33260c; --soon-ink:#f2bd55; --soon-dot:#e8930c;
+    --closed-bg:#3a1c1c; --closed-ink:#f08a8a; --closed-dot:#d84040;
+    --adhoc-bg:#20252e; --adhoc-ink:#9aa4b0; --adhoc-dot:#6b7482;
+    --check-bg:#20252e; --check-ink:#8a95a3; --check-dot:#3a424e;
+    --applied-bg:#241a3d; --applied-ink:#b39bf0; --applied-dot:#8a63e0;
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .wrap{max-width:1120px;margin:0 auto;padding:24px 16px 64px}
+  header.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 20px;justify-content:space-between;margin-bottom:4px}
+  h1{font-size:22px;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:2px 0 0;font-size:13px}
+  .theme-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);
+    border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12.5px}
+  .theme-btn:hover{color:var(--ink)}
+
+  /* stat tiles */
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:18px 0}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;box-shadow:var(--shadow);cursor:pointer;transition:border-color .12s}
+  .tile:hover{border-color:var(--accent)}
+  .tile.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .tile .num{font-size:22px;font-weight:650;letter-spacing:-.02em}
+  .tile .lbl{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:2px}
+  .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;display:inline-block}
+
+  /* controls */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px}
+  .search{flex:1 1 240px;min-width:180px;display:flex;align-items:center;gap:8px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+  .search input{border:0;background:transparent;color:var(--ink);width:100%;outline:none;font-size:14px}
+  select,.mini{border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
+  .mini{color:var(--muted)}
+  .mini:hover{color:var(--ink);border-color:var(--accent)}
+  .spacer{flex:1 1 auto}
+
+  /* table */
+  .group{margin-top:22px}
+  .group h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    margin:0 0 8px;padding-left:2px;display:flex;align-items:center;gap:8px}
+  .group h2 .count{background:var(--adhoc-bg);color:var(--muted);border-radius:20px;
+    padding:1px 9px;font-size:11px;letter-spacing:0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    overflow:hidden;box-shadow:var(--shadow)}
+  .row{display:grid;grid-template-columns:minmax(180px,1.4fr) 148px minmax(160px,2fr) 96px;
+    gap:10px;align-items:center;padding:12px 16px;border-top:1px solid var(--line2)}
+  .row:first-child{border-top:0}
+  .row:hover{background:var(--accent-soft)}
+  .name{font-weight:600;display:flex;flex-direction:column;gap:2px}
+  .name a{color:inherit;text-decoration:none}
+  .name a:hover{color:var(--accent);text-decoration:underline}
+  .name .scheme{font-weight:400;font-size:11.5px;color:var(--muted)}
+
+  .badge{display:inline-flex;align-items:center;gap:7px;border:0;cursor:pointer;
+    border-radius:20px;padding:5px 11px 5px 10px;font-size:12px;font-weight:600;
+    white-space:nowrap;width:fit-content;user-select:none}
+  .badge:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .s-open{background:var(--open-bg);color:var(--open-ink)}   .s-open .dot{background:var(--open-dot)}
+  .s-soon{background:var(--soon-bg);color:var(--soon-ink)}   .s-soon .dot{background:var(--soon-dot)}
+  .s-closed{background:var(--closed-bg);color:var(--closed-ink)} .s-closed .dot{background:var(--closed-dot)}
+  .s-adhoc{background:var(--adhoc-bg);color:var(--adhoc-ink)} .s-adhoc .dot{background:var(--adhoc-dot)}
+  .s-check{background:var(--check-bg);color:var(--check-ink)} .s-check .dot{background:var(--check-dot)}
+  .s-applied{background:var(--applied-bg);color:var(--applied-ink)} .s-applied .dot{background:var(--applied-dot)}
+
+  .note{font-size:12.5px;color:var(--muted)}
+  .note textarea{width:100%;border:1px solid transparent;background:transparent;color:var(--ink);
+    font:inherit;resize:vertical;border-radius:8px;padding:5px 7px;min-height:32px;line-height:1.35}
+  .note textarea:hover{border-color:var(--line)}
+  .note textarea:focus{border-color:var(--accent);outline:none;background:var(--bg)}
+  .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.35}
+  .meta .link{display:inline-block;margin-top:3px;color:var(--accent);text-decoration:none}
+  .meta .link:hover{text-decoration:underline}
+
+  .foot{margin-top:26px;color:var(--muted);font-size:12px;line-height:1.6}
+  .foot code{background:var(--adhoc-bg);padding:1px 6px;border-radius:6px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .empty{padding:26px 16px;text-align:center;color:var(--muted)}
+  .banner{background:var(--accent-soft);border:1px solid var(--line);border-radius:12px;
+    padding:11px 14px;font-size:12.5px;color:var(--muted);margin:14px 0 0}
+  .banner b{color:var(--ink)}
+
+  @media(max-width:820px){
+    .stats{grid-template-columns:repeat(3,1fr)}
+    .row{grid-template-columns:1fr;gap:8px}
+    .meta{text-align:left}
+    .row>*{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Asset Management — Early Careers Tracker</h1>
+      <p class="sub">Summer internships &amp; graduate programmes · 2027 intake · seeded 15 Sep 2026</p>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">◐ Theme</button>
+  </header>
+
+  <div class="banner">
+    <b>How this works:</b> statuses are seeded from research on 15 Sep 2026 — click any status badge to cycle it
+    (Check → Open → Opening soon → Closed → Ad hoc → Applied), edit the notes inline, and everything saves in this
+    browser. Always confirm against the firm's own careers page (linked on each row) before applying.
+  </div>
+
+  <section class="stats" id="stats"></section>
+
+  <div class="controls">
+    <label class="search">
+      <span aria-hidden="true">🔎</span>
+      <input id="search" type="search" placeholder="Search company or notes…" autocomplete="off">
+    </label>
+    <select id="tierFilter">
+      <option value="">All groups</option>
+      <option value="tier1">Tier 1</option>
+      <option value="tier2">Tier 2</option>
+      <option value="owner">Asset owners</option>
+    </select>
+    <div class="spacer"></div>
+    <button class="mini" id="exportBtn" type="button">⭳ Export</button>
+    <button class="mini" id="importBtn" type="button">⭱ Import</button>
+    <button class="mini" id="resetBtn" type="button">↺ Reset</button>
+    <input id="fileInput" type="file" accept="application/json" hidden>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div id="list"></div>
+
+  <div class="foot">
+    <p><b>Notes on coverage.</b> The large firms (DWS, Fidelity, LGIM, M&amp;G, Baillie Gifford, Invesco, Morgan Stanley IM,
+    Wellington, Janus Henderson, Columbia Threadneedle, abrdn, and most Tier 2 names) run structured, dated internship /
+    graduate schemes — those are the rows worth watching for an "opens" date. Many Tier 1 boutiques
+    (Fundsmith, Lindsell Train, Veritas, Findlay Park, Silchester, Egerton, Lansdowne, Marathon, Troy, Somerset,
+    Sloane Robinson, Pelham, Guinness) do <b>not</b> run formal cycles — they hire opportunistically, so they are marked
+    <em>Ad hoc</em>: check their site periodically or apply speculatively rather than waiting for a window.</p>
+    <p><b>Persistence.</b> Your edits live in this browser's <code>localStorage</code>. Use <b>Export</b> to save a JSON
+    backup (and to move it between devices), <b>Import</b> to restore, <b>Reset</b> to return to the seeded data.</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+const STORE_KEY = "am-earlycareers-tracker-v1";
+
+// order + colours for status cycling
+const STATUSES = [
+  {k:"check",  label:"Check",        cls:"s-check"},
+  {k:"open",   label:"Open now",     cls:"s-open"},
+  {k:"soon",   label:"Opening soon", cls:"s-soon"},
+  {k:"closed", label:"Closed",       cls:"s-closed"},
+  {k:"adhoc",  label:"Ad hoc",       cls:"s-adhoc"},
+  {k:"applied",label:"Applied",      cls:"s-applied"},
+];
+const S = Object.fromEntries(STATUSES.map(s=>[s.k,s]));
+
+// Seed data — status/notes reflect public research as of 15 Sep 2026. Verify on each careers page.
+const SEED = [
+  // ---------- TIER 1 ----------
+  {t:"tier1", n:"DWS (Summer + PACE)", sc:"P.A.C.E. grad + summer internship", u:"https://www.dws-earlycareers.groupgti.com/",
+   s:"soon", note:"2027 Spring internships live. Summer internships + PACE graduate = register interest, opening soon."},
+  {t:"tier1", n:"Fidelity International", sc:"10-wk summer internship → grad", u:"https://careers.fidelityinternational.com/early-careers-overview/",
+   s:"soon", note:"Register interest now; 2027 summer applications open Autumn 2026. Penultimate-year, any discipline."},
+  {t:"tier1", n:"Vanguard", sc:"Internship / early careers", u:"https://www.vanguardjobs.com/students-and-grads/",
+   s:"check", note:"Check UK/EU early-careers listings; most structured programmes are US-based."},
+  {t:"tier1", n:"PIMCO", sc:"Analyst / summer internship", u:"https://www.pimco.com/en-us/our-firm/careers/students",
+   s:"check", note:"Analyst & internship programmes; deadlines cluster in autumn — verify current reqs."},
+  {t:"tier1", n:"Wellington Management", sc:"10-wk summer internship", u:"https://www.wellington.com/en-gb/professional/about-wellington/campus-programmes",
+   s:"open", note:"2027 cycle opens mid-Sep 2026, hard deadline late Oct. Reviewed after deadline — no early-bird edge."},
+  {t:"tier1", n:"Legal & General IM (LGIM)", sc:"Grad scheme + 8-wk internship", u:"https://careers.legalandgeneral.com/graduate-scheme",
+   s:"soon", note:"Graduate applications open ~October, internships ~November 2026. Some roles later — watch site."},
+  {t:"tier1", n:"M&G", sc:"Grad scheme + 8-wk internship", u:"https://group.mandg.com/careers/routes-into-mandg/early-careers",
+   s:"soon", note:"2027 graduate intake opens October 2026. Internship is penultimate-year, converts to grad scheme."},
+  {t:"tier1", n:"Baillie Gifford", sc:"Investment Research grad + internships", u:"https://www.bailliegifford.com/en/uk/individual-investors/careers/early-careers/",
+   s:"open", note:"OPEN: 2027 Investment Research grad programme + Technology summer internships opened 15 Sep 2026 (Edinburgh)."},
+  {t:"tier1", n:"Invesco", sc:"Internship / trainee (Henley)", u:"https://careers.invesco.com/early-careers/",
+   s:"open", note:"2027 cycle opening Sep–Oct 2026 on Workday; rolling review — apply early, some postings fill fast."},
+  {t:"tier1", n:"Morgan Stanley IM", sc:"IM Summer Analyst (10 wks)", u:"https://www.morganstanley.com/campus",
+   s:"open", note:"OPEN & closing soon: several 2027 IM Summer Analyst roles deadline 25 Sep 2026 (HireVue by 27 Sep)."},
+  {t:"tier1", n:"Amundi", sc:"Graduate programme / internships", u:"https://about.amundi.com/Amundi-careers",
+   s:"check", note:"Amundi Graduate Programme + internships (mostly Paris/EU). Verify current openings."},
+  {t:"tier1", n:"AXA IM", sc:"Graduate programme / internships", u:"https://www.axa-im.com/careers/early-careers",
+   s:"check", note:"Graduate programme and internships across London/Paris. Check live roles."},
+  {t:"tier1", n:"Acadian Asset Management", sc:"Quant internship (limited)", u:"https://www.acadian-asset.com/about-us/careers",
+   s:"check", note:"Quant shop; small, mostly Boston-based internships. Limited structured early careers."},
+  {t:"tier1", n:"Dimensional (DFA)", sc:"Associate / internship programme", u:"https://www.dimensional.com/careers",
+   s:"check", note:"Runs structured associate & internship programmes (London/US). Verify current windows."},
+  {t:"tier1", n:"Robeco", sc:"Traineeship / internships", u:"https://www.robeco.com/en-int/careers",
+   s:"check", note:"Traineeships & internships, mostly Rotterdam. Check live listings."},
+  {t:"tier1", n:"Lindsell Train", sc:"Boutique — no formal scheme", u:"https://www.lindselltrain.com/",
+   s:"adhoc", note:"Small boutique; no structured grad/intern cycle. Speculative / occasional roles only."},
+  {t:"tier1", n:"Ruffer", sc:"Graduate programme", u:"https://ruffer.co.uk/en/Careers",
+   s:"check", note:"Runs a structured graduate programme (London/Edinburgh). Check for the 2027 window."},
+  {t:"tier1", n:"Troy Asset Management", sc:"Boutique — no formal scheme", u:"https://www.taml.co.uk/",
+   s:"adhoc", note:"Small boutique; hires opportunistically. No published grad/intern cycle."},
+  {t:"tier1", n:"Fundsmith", sc:"Boutique — no formal scheme", u:"https://www.fundsmith.co.uk/",
+   s:"adhoc", note:"Very small team; no structured early-careers programme. Speculative only."},
+  {t:"tier1", n:"Veritas Asset Management", sc:"Boutique — no formal scheme", u:"https://www.veritas-asset.com/",
+   s:"adhoc", note:"Boutique; no published grad scheme. Occasional / speculative roles."},
+  {t:"tier1", n:"Findlay Park", sc:"Boutique — no formal scheme", u:"https://www.findlaypark.com/",
+   s:"adhoc", note:"Single-strategy boutique; no structured early-careers cycle."},
+  {t:"tier1", n:"Silchester International", sc:"Boutique — no formal scheme", u:"https://www.silchester.com/",
+   s:"adhoc", note:"Low-profile value boutique; no published grad/intern programme."},
+  {t:"tier1", n:"Egerton Capital", sc:"Hedge fund — no formal scheme", u:"https://www.egertoncapital.com/",
+   s:"adhoc", note:"Long/short equity fund; hires selectively, no structured cycle."},
+  {t:"tier1", n:"Lansdowne Partners", sc:"Hedge fund — no formal scheme", u:"https://www.lansdownepartners.com/",
+   s:"adhoc", note:"Hedge fund; opportunistic hiring, no published grad programme."},
+  {t:"tier1", n:"Marathon Asset Management", sc:"Boutique — no formal scheme", u:"https://www.marathon.co.uk/",
+   s:"adhoc", note:"London global-equity boutique (not the US credit firm). No structured cycle."},
+  {t:"tier1", n:"Polar Capital", sc:"Occasional grad / internship", u:"https://www.polarcapital.co.uk/gb/about-us/careers/",
+   s:"check", note:"Boutique multi-team manager; occasional early-careers roles — check listings."},
+  {t:"tier1", n:"Artemis", sc:"Occasional early careers", u:"https://www.artemisfunds.com/en/about-artemis/careers",
+   s:"check", note:"Active-equity boutique; runs occasional internships/grad roles — verify."},
+  {t:"tier1", n:"Liontrust", sc:"Occasional early careers", u:"https://www.liontrust.co.uk/about-us/careers",
+   s:"check", note:"Occasional early-careers openings; no large annual cohort. Check site."},
+  {t:"tier1", n:"Somerset Capital", sc:"EM boutique — wound down", u:"https://www.somersetcm.com/",
+   s:"closed", note:"⚠ Somerset Capital Management wound down / closed to new business in 2024. Verify firm status before applying."},
+  {t:"tier1", n:"Stewart Investors", sc:"Part of First Sentier", u:"https://www.stewartinvestors.com/all/about-us/careers.html",
+   s:"check", note:"Sustainable-equity team within First Sentier; early-careers via First Sentier — check listings."},
+  {t:"tier1", n:"Comgest", sc:"Analyst / graduate (Paris)", u:"https://www.comgest.com/en/about-us/careers",
+   s:"check", note:"Quality-growth boutique; analyst/graduate hiring mainly Paris. Verify roles."},
+  {t:"tier1", n:"Setanta Asset Management", sc:"Boutique (Dublin)", u:"https://www.setanta-asset.com/",
+   s:"adhoc", note:"Dublin value boutique (part of Great-West/iA). No published grad cycle."},
+  {t:"tier1", n:"Guinness Global Investors", sc:"Boutique — no formal scheme", u:"https://www.guinnessgi.com/about-us/careers",
+   s:"adhoc", note:"Boutique; occasional analyst roles, no structured intern/grad cycle."},
+  {t:"tier1", n:"Sloane Robinson", sc:"Boutique — winding down", u:"https://www.sloanerobinson.com/",
+   s:"adhoc", note:"EM-focused firm; much reduced in scale. No structured early-careers programme — verify status."},
+  {t:"tier1", n:"Pelham Capital", sc:"Hedge fund — no formal scheme", u:"https://www.pelhamcapital.com/",
+   s:"adhoc", note:"Long/short equity fund; selective hiring, no published grad programme."},
+
+  // ---------- TIER 2 ----------
+  {t:"tier2", n:"Janus Henderson", sc:"Grad analyst + 10–12wk internship", u:"https://www.janushenderson.com/corporate/careers/early-careers/",
+   s:"soon", note:"Associate Analyst grad (3× rotations) + summer internships across EMEA/US; CFA/IMC support. Verify 2027 window."},
+  {t:"tier2", n:"Columbia Threadneedle", sc:"24-mo grad + 10-wk internship", u:"https://www.columbiathreadneedle.com/en/gb/private/careers/early-careers/",
+   s:"soon", note:"2027 summer internship listed; dates TBC. 24-month rotational grad (first rotation in Global Research)."},
+  {t:"tier2", n:"Aberdeen (abrdn)", sc:"10-wk internship + 24-mo grad", u:"https://www.aberdeenplc.com/en-gb/careers/early-careers",
+   s:"open", note:"Internship + grad programme; closing date Wed 5 Nov 2026 (may close early). Grad starts Sep 2027."},
+  {t:"tier2", n:"Insight Investment", sc:"Graduate scheme", u:"https://www.insightinvestment.com/careers/",
+   s:"check", note:"Fixed-income/LDI specialist; runs a graduate scheme. Verify 2027 opening."},
+  {t:"tier2", n:"Capital Group", sc:"Associate / internship", u:"https://www.capitalgroup.com/global/careers.html",
+   s:"check", note:"Runs London associate & internship programmes. Check live reqs and deadlines."},
+  {t:"tier2", n:"BNP Paribas AM", sc:"Graduate / internship", u:"https://group.bnpparibas/en/careers",
+   s:"check", note:"Early careers via BNP Paribas group portal (VIE, internships, grad). Filter for AM roles."},
+  {t:"tier2", n:"T. Rowe Price", sc:"Summer internship (London)", u:"https://www.troweprice.com/en/careers",
+   s:"check", note:"Summer internship & analyst programmes incl. London. Autumn deadlines — verify."},
+  {t:"tier2", n:"MFS", sc:"Internship programme", u:"https://www.mfs.com/en-us/what-we-do/careers.html",
+   s:"check", note:"Internships mainly Boston; some London roles. Check current listings."},
+  {t:"tier2", n:"Northern Trust AM", sc:"Graduate / early careers", u:"https://www.northerntrust.com/united-kingdom/careers",
+   s:"check", note:"Graduate & internship routes (incl. London). Verify AM-specific openings."},
+  {t:"tier2", n:"AllianceBernstein", sc:"Analyst / internship", u:"https://www.alliancebernstein.com/corporate/en/careers.html",
+   s:"check", note:"Structured analyst & summer internship programmes; autumn deadlines — verify."},
+  {t:"tier2", n:"Neuberger Berman", sc:"Analyst / summer internship", u:"https://www.nb.com/en/global/careers",
+   s:"check", note:"Runs analyst & summer internship programmes (deadlines often early autumn). Verify."},
+  {t:"tier2", n:"PGIM", sc:"Early careers / internship", u:"https://www.pgim.com/careers",
+   s:"check", note:"Prudential (US) IM arm; internship & rotational programmes. Check live roles."},
+  {t:"tier2", n:"Lazard Asset Management", sc:"Analyst / internship", u:"https://www.lazard.com/careers/",
+   s:"check", note:"Analyst & internship routes across AM/advisory. Verify AM openings."},
+  {t:"tier2", n:"Nuveen (TIAA)", sc:"Early careers / internship", u:"https://www.nuveen.com/en-us/about-us/careers",
+   s:"check", note:"TIAA's investment manager; internship & rotational programmes (mostly US). Verify."},
+  {t:"tier2", n:"Aviva Investors", sc:"Graduate programme", u:"https://www.avivainvestors.com/en-gb/about/careers/",
+   s:"check", note:"Runs a structured graduate programme (London). Verify 2027 opening date."},
+  {t:"tier2", n:"Pictet AM", sc:"Graduate / internship", u:"https://www.group.pictet/careers",
+   s:"check", note:"Graduate programme & internships (Geneva/London). Check live listings."},
+  {t:"tier2", n:"Lombard Odier IM", sc:"Graduate / internship", u:"https://www.lombardodier.com/home/careers.html",
+   s:"check", note:"Internships & graduate routes (Geneva/London). Verify openings."},
+  {t:"tier2", n:"Vontobel", sc:"Graduate / internship", u:"https://www.vontobel.com/en/careers/",
+   s:"check", note:"Graduate & internship programmes (Zurich/London). Check current roles."},
+  {t:"tier2", n:"Candriam", sc:"Graduate academy / internship", u:"https://www.candriam.com/en/professional/about-us/careers/",
+   s:"check", note:"Candriam graduate academy & internships (Brussels/Paris/London). Verify."},
+  {t:"tier2", n:"Nordea AM", sc:"Graduate programme", u:"https://www.nordea.com/en/careers",
+   s:"check", note:"Nordea Graduate Programme (asset management track). Check window & locations."},
+  {t:"tier2", n:"First Sentier Investors", sc:"Early careers / internship", u:"https://www.firstsentierinvestors.com/uk/en/institutional/about-us/careers.html",
+   s:"check", note:"Global boutique group (parent of Stewart Investors). Occasional early-careers roles — verify."},
+  {t:"tier2", n:"TwentyFour AM", sc:"Boutique (fixed income)", u:"https://www.twentyfouram.com/careers",
+   s:"adhoc", note:"Fixed-income boutique (Vontobel-owned); small team, opportunistic hiring."},
+
+  // ---------- ASSET OWNERS ----------
+  {t:"owner", n:"USS Investment Management", sc:"Graduate scheme", u:"https://www.uss.co.uk/careers",
+   s:"check", note:"UK pension (USS) in-house manager; runs a graduate scheme. Verify 2027 opening."},
+  {t:"owner", n:"CPP Investments", sc:"Analyst / internship programme", u:"https://www.cppinvestments.com/careers/students-and-new-grads/",
+   s:"check", note:"Canadian pension; structured Analyst & internship programmes (incl. London). Autumn deadlines — verify."},
+  {t:"owner", n:"CDPQ", sc:"Internship / new grad", u:"https://www.cdpq.com/en/careers",
+   s:"check", note:"Québec pension; internship & new-grad programmes (Montréal + intl offices). Check listings."},
+  {t:"owner", n:"Ontario Teachers' (OTPP)", sc:"Internship / new grad", u:"https://www.otpp.com/en-ca/about-us/careers/",
+   s:"check", note:"Structured internship & new-grad programmes (Toronto/London). Verify current window."},
+  {t:"owner", n:"PSP Investments", sc:"Internship / new grad", u:"https://www.investpsp.com/en/careers/",
+   s:"check", note:"Canadian public-sector pension; internship & grad routes. Check live roles."},
+];
+
+const GROUPS = [
+  {k:"tier1", label:"Tier 1"},
+  {k:"tier2", label:"Tier 2"},
+  {k:"owner", label:"Asset owners"},
+];
+
+/* ---------- state ---------- */
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){ const saved = JSON.parse(raw); return merge(saved); }
+  }catch(e){}
+  return SEED.map((d,i)=>({...d, id:i, updated:null}));
+}
+// merge saved overrides onto seed (keeps new seed rows if list grows)
+function merge(saved){
+  const byName = new Map((saved.items||[]).map(x=>[x.n,x]));
+  return SEED.map((d,i)=>{
+    const o = byName.get(d.n);
+    return {...d, id:i, s:o?o.s:d.s, note:o?o.note:d.note, updated:o?o.updated:null};
+  });
+}
+function save(){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      v:1, saved:new Date().toISOString(),
+      items:data.map(d=>({n:d.n, s:d.s, note:d.note, updated:d.updated}))
+    }));
+  }catch(e){}
+}
+let data = load();
+let filterStatus = "";     // stat-tile filter
+let filterTier = "";
+let q = "";
+
+/* ---------- render ---------- */
+const $ = s=>document.querySelector(s);
+const listEl = $("#list");
+const statsEl = $("#stats");
+const legendEl = $("#legend");
+
+function fmtDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{day:"numeric",month:"short"});
+}
+
+function renderStats(){
+  const counts = {open:0,soon:0,closed:0,adhoc:0,check:0,applied:0};
+  data.forEach(d=>counts[d.s]++);
+  const tiles = [
+    {k:"", label:"All", num:data.length, dot:null},
+    ...STATUSES.map(s=>({k:s.k, label:s.label, num:counts[s.k], cls:s.cls}))
+  ];
+  statsEl.innerHTML = tiles.map(t=>`
+    <div class="tile ${filterStatus===t.k?'active':''}" data-status="${t.k}">
+      <div class="num">${t.num}</div>
+      <div class="lbl">${t.k?`<span class="dot" style="background:var(--${t.k}-dot)"></span>`:""}${t.label}</div>
+    </div>`).join("");
+  statsEl.querySelectorAll(".tile").forEach(el=>{
+    el.onclick = ()=>{ filterStatus = filterStatus===el.dataset.status ? "" : el.dataset.status; renderAll(); };
+  });
+}
+
+function renderLegend(){
+  legendEl.innerHTML = STATUSES.map(s=>
+    `<span><span class="dot" style="background:var(--${s.k}-dot)"></span>${s.label}</span>`).join("");
+}
+
+function matches(d){
+  if(filterTier && d.t!==filterTier) return false;
+  if(filterStatus && d.s!==filterStatus) return false;
+  if(q){
+    const hay = (d.n+" "+d.sc+" "+d.note).toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+function rowHTML(d){
+  const st = S[d.s];
+  return `
+  <div class="row" data-id="${d.id}">
+    <div class="name">
+      <a href="${d.u}" target="_blank" rel="noopener">${d.n} ↗</a>
+      <span class="scheme">${d.sc}</span>
+    </div>
+    <div>
+      <button class="badge ${st.cls}" data-act="cycle" title="Click to change status">
+        <span class="dot"></span>${st.label}
+      </button>
+    </div>
+    <div class="note">
+      <textarea data-act="note" rows="1" placeholder="Add a note, deadline, contact…">${(d.note||"").replace(/</g,"&lt;")}</textarea>
+    </div>
+    <div class="meta">
+      ${d.updated?`edited ${fmtDate(d.updated)}`:"&nbsp;"}
+      <br><a class="link" href="${d.u}" target="_blank" rel="noopener">Careers ↗</a>
+    </div>
+  </div>`;
+}
+
+function renderList(){
+  let html = "";
+  let anyShown = false;
+  GROUPS.forEach(g=>{
+    if(filterTier && filterTier!==g.k) return;
+    const rows = data.filter(d=>d.t===g.k && matches(d));
+    if(!rows.length) return;
+    anyShown = true;
+    html += `<section class="group">
+      <h2>${g.label} <span class="count">${rows.length}</span></h2>
+      <div class="panel">${rows.map(rowHTML).join("")}</div>
+    </section>`;
+  });
+  listEl.innerHTML = anyShown ? html : `<div class="panel"><div class="empty">No companies match your filters.</div></div>`;
+  // wire up
+  listEl.querySelectorAll(".row").forEach(row=>{
+    const id = +row.dataset.id;
+    const d = data.find(x=>x.id===id);
+    row.querySelector('[data-act="cycle"]').onclick = ()=>{
+      const idx = STATUSES.findIndex(s=>s.k===d.s);
+      d.s = STATUSES[(idx+1)%STATUSES.length].k;
+      d.updated = new Date().toISOString();
+      save(); renderStats(); renderList();
+    };
+    const ta = row.querySelector('[data-act="note"]');
+    autoGrow(ta);
+    ta.addEventListener("input", ()=>autoGrow(ta));
+    ta.addEventListener("change", ()=>{
+      d.note = ta.value; d.updated = new Date().toISOString(); save();
+      // refresh only the meta cell timestamp
+      const meta = row.querySelector(".meta");
+      meta.innerHTML = `edited ${fmtDate(d.updated)}<br><a class="link" href="${d.u}" target="_blank" rel="noopener">Careers ↗</a>`;
+    });
+  });
+}
+function autoGrow(ta){ ta.style.height="auto"; ta.style.height=Math.max(32,ta.scrollHeight)+"px"; }
+
+function renderAll(){ renderStats(); renderList(); }
+
+/* ---------- controls ---------- */
+$("#search").addEventListener("input", e=>{ q = e.target.value.trim().toLowerCase(); renderList(); });
+$("#tierFilter").addEventListener("change", e=>{ filterTier = e.target.value; renderAll(); });
+
+$("#exportBtn").onclick = ()=>{
+  const blob = new Blob([JSON.stringify({v:1, exported:new Date().toISOString(),
+    items:data.map(d=>({n:d.n, t:d.t, s:d.s, note:d.note, updated:d.updated}))}, null, 2)],
+    {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "am-tracker-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+};
+$("#importBtn").onclick = ()=>$("#fileInput").click();
+$("#fileInput").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const parsed = JSON.parse(r.result);
+      data = merge({items:parsed.items||[]});
+      save(); renderAll();
+    }catch(err){ alert("Could not read that file — expected a JSON export from this tracker."); }
+  };
+  r.readAsText(f);
+  e.target.value = "";
+});
+$("#resetBtn").onclick = ()=>{
+  if(confirm("Reset all statuses and notes back to the seeded data? Your edits will be lost.")){
+    try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+    data = SEED.map((d,i)=>({...d, id:i, updated:null}));
+    renderAll();
+  }
+};
+
+/* ---------- theme toggle ---------- */
+$("#themeBtn").onclick = ()=>{
+  const cur = document.documentElement.getAttribute("data-theme");
+  const isDark = cur ? cur==="dark"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", isDark?"light":"dark");
+  try{ localStorage.setItem(STORE_KEY+"-theme", isDark?"light":"dark"); }catch(e){}
+};
+try{ const th = localStorage.getItem(STORE_KEY+"-theme"); if(th) document.documentElement.setAttribute("data-theme", th); }catch(e){}
+
+/* ---------- go ---------- */
+renderLegend();
+renderAll();
+</script>
+</body>
+</html>
