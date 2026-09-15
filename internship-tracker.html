@@ -73,6 +73,8 @@
     border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
   .mini{color:var(--muted)}
   .mini:hover{color:var(--ink);border-color:var(--accent)}
+  .synced{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    color:var(--open-ink);background:var(--open-bg);border-radius:10px;padding:8px 12px}
   .spacer{flex:1 1 auto}
 
   /* table */
@@ -190,6 +192,7 @@
       <option value="new">Discovered (London)</option>
     </select>
     <div class="spacer"></div>
+    <span id="syncBadge" class="synced" hidden title="Your statuses and notes are saved to your Claude account and sync across your devices">☁ Synced to your account</span>
     <button class="mini" id="exportBtn" type="button">⭳ Export</button>
     <button class="mini" id="importBtn" type="button">⭱ Import</button>
     <button class="mini" id="resetBtn" type="button">↺ Reset</button>
@@ -207,8 +210,10 @@
     (Fundsmith, Lindsell Train, Veritas, Findlay Park, Silchester, Egerton, Lansdowne, Marathon, Troy, Somerset,
     Sloane Robinson, Pelham, Guinness) do <b>not</b> run formal cycles — they hire opportunistically, so they are marked
     <em>Ad hoc</em>: check their site periodically or apply speculatively rather than waiting for a window.</p>
-    <p><b>Persistence.</b> Your edits live in this browser's <code>localStorage</code>. Use <b>Export</b> to save a JSON
-    backup (and to move it between devices), <b>Import</b> to restore, <b>Reset</b> to return to the seeded data.</p>
+    <p><b>Persistence.</b> When you open this as a published Artifact while signed in, your statuses and notes are saved
+    to your Claude account and <b>sync across your devices</b> automatically (look for the “☁ Synced” badge). Opened as a
+    plain HTML file instead, edits are kept in that browser's <code>localStorage</code>, with <b>Export</b> / <b>Import</b>
+    to move a JSON backup between browsers. <b>Reset</b> returns everything to the seeded data.</p>
   </div>
 </div>
 
@@ -409,23 +414,32 @@ function buildData(items, customRows){
   }));
   return seedRows.concat(custom).map((d,i)=>({...d, id:i}));
 }
+// The portable state blob (mirrors both localStorage and the cloud db doc).
+function currentStore(){
+  return {
+    v:1, saved:new Date().toISOString(),
+    items:data.map(d=>({n:d.n, s:d.s, note:d.note, updated:d.updated})),
+    customRows:data.filter(d=>d.t==="new").map(d=>({n:d.n, sc:d.sc, u:d.u, s:d.s, note:d.note, updated:d.updated})),
+    openState
+  };
+}
+function applyStore(store){
+  openState = Object.assign({dismissed:[], added:[]}, (store&&store.openState)||{});
+  data = buildData(store&&store.items, store&&store.customRows);
+}
 function load(){
   let store = {};
   try{ const raw = localStorage.getItem(STORE_KEY); if(raw) store = JSON.parse(raw); }catch(e){}
-  openState = Object.assign({dismissed:[], added:[]}, store.openState||{});
-  return buildData(store.items, store.customRows);
+  applyStore(store);
+  return data;
 }
 function save(){
-  try{
-    localStorage.setItem(STORE_KEY, JSON.stringify({
-      v:1, saved:new Date().toISOString(),
-      items:data.map(d=>({n:d.n, s:d.s, note:d.note, updated:d.updated})),
-      customRows:data.filter(d=>d.t==="new").map(d=>({n:d.n, sc:d.sc, u:d.u, s:d.s, note:d.note, updated:d.updated})),
-      openState
-    }));
-  }catch(e){}
+  const store = currentStore();
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){}
+  scheduleCloudWrite();   // write-through to the artifact db when available
 }
-let data = load();
+let data;
+load();
 let filterStatus = "";     // stat-tile filter
 let filterTier = "";
 let q = "";
@@ -628,11 +642,10 @@ $("#fileInput").addEventListener("change", e=>{
   e.target.value = "";
 });
 $("#resetBtn").onclick = ()=>{
-  if(confirm("Reset all statuses and notes back to the seeded data? Your edits will be lost.")){
-    try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+  if(confirm("Reset all statuses and notes back to the seeded data? Your edits will be lost (on every synced device).")){
     openState = {dismissed:[], added:[]};
     data = buildData([], []);
-    renderAll();
+    save(); renderAll();
   }
 };
 
@@ -646,9 +659,61 @@ $("#themeBtn").onclick = ()=>{
 };
 try{ const th = localStorage.getItem(STORE_KEY+"-theme"); if(th) document.documentElement.setAttribute("data-theme", th); }catch(e){}
 
+/* ---------- cloud sync (artifact db) ----------
+   When the page runs as a published Artifact with the `db` capability granted,
+   state is written through to a single db document and streamed back live, so
+   edits follow the signed-in viewer across devices/tabs. When db is absent
+   (raw file open in a browser, or not granted), it silently falls back to the
+   localStorage copy that save() always writes. */
+let cloudDoc = null;
+let writeTimer = null, writing = false, pendingWrite = false, lastSavedStamp = null;
+
+function scheduleCloudWrite(){
+  if(!cloudDoc) return;
+  clearTimeout(writeTimer);
+  writeTimer = setTimeout(flushCloudWrite, 400);   // coalesce bursts of edits
+}
+async function flushCloudWrite(){
+  if(!cloudDoc) return;
+  if(writing){ pendingWrite = true; return; }      // one write at a time per doc
+  writing = true;
+  const store = currentStore();
+  lastSavedStamp = store.saved;
+  try{ await cloudDoc.set(store); }
+  catch(e){ /* transient — localStorage keeps the durable copy */ }
+  finally{
+    writing = false;
+    if(pendingWrite){ pendingWrite = false; flushCloudWrite(); }
+  }
+}
+function setSynced(on){
+  const badge = document.getElementById("syncBadge");
+  if(badge) badge.hidden = !on;
+  ["exportBtn","importBtn"].forEach(id=>{ const b=document.getElementById(id); if(b) b.hidden = on; });
+}
+async function initCloud(){
+  if(!(window.claude && typeof window.claude.use === "function")) return; // raw file
+  let db;
+  try{ db = await window.claude.use("db"); }catch(e){ db = null; }
+  if(!db) return;                                   // not granted / unavailable
+  let doc;
+  try{ doc = db.doc("state/tracker"); }catch(e){ return; }
+  cloudDoc = doc;
+  setSynced(true);
+  doc.onSnapshot(snap=>{
+    if(snap.metadata && snap.metadata.hasPendingWrites) return;  // our own optimistic echo
+    if(!snap.exists){ flushCloudWrite(); return; }               // first open: seed the cloud doc
+    const body = snap.data() || {};
+    if(body.saved && body.saved === lastSavedStamp) return;      // our own confirmed write
+    applyStore(body);                                            // remote change (another device)
+    renderAll();
+  }, err=>{ /* terminal db error: keep working from localStorage */ });
+}
+
 /* ---------- go ---------- */
 renderLegend();
 renderAll();
+initCloud();
 </script>
 </body>
 </html>
