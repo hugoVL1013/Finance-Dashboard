@@ -121,6 +121,32 @@
     padding:11px 14px;font-size:12.5px;color:var(--muted);margin:14px 0 0}
   .banner b{color:var(--ink)}
 
+  /* new-openings banner */
+  #newBanner{margin-top:18px}
+  .nb-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
+  .nb-title{font-size:15px;font-weight:650;letter-spacing:-.01em}
+  .nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:10px}
+  .nb-card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:12px;padding:12px 13px;box-shadow:var(--shadow)}
+  .nb-cat{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:2px 8px;border-radius:20px;margin-bottom:8px}
+  .cat-internship{background:var(--open-bg);color:var(--open-ink)}
+  .cat-im{background:var(--accent-soft);color:var(--accent)}
+  .cat-equity-research{background:var(--soon-bg);color:var(--soon-ink)}
+  .cat-research{background:var(--applied-bg);color:var(--applied-ink)}
+  .nb-firm{font-weight:650;font-size:14px;line-height:1.25}
+  .nb-role{font-size:12.5px;color:var(--ink);margin-top:2px}
+  .nb-meta{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .nb-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:11px}
+  .nb-link{font-size:12px;color:var(--accent);text-decoration:none;margin-right:auto;font-weight:600}
+  .nb-link:hover{text-decoration:underline}
+  .nb-add{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:5px 10px;
+    font-size:12px;font-weight:600;cursor:pointer}
+  .nb-add:hover{filter:brightness(1.08)}
+  .nb-dismiss{border:1px solid var(--line);background:transparent;color:var(--muted);
+    border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer}
+  .nb-dismiss:hover{color:var(--ink);border-color:var(--adhoc-dot)}
+
   @media(max-width:820px){
     .stats{grid-template-columns:repeat(3,1fr)}
     .row{grid-template-columns:1fr;gap:8px}
@@ -139,9 +165,13 @@
     <button class="theme-btn" id="themeBtn" type="button">◐ Theme</button>
   </header>
 
+  <section id="newBanner" hidden></section>
+
   <div class="banner">
-    <b>How this works:</b> statuses are seeded from research on 15 Sep 2026 — click any status badge to cycle it
-    (Check → Open → Opening soon → Closed → Ad hoc → Applied), edit the notes inline, and everything saves in this
+    <b>How this works:</b> the top banner surfaces <b>new London openings</b> (summer internships, investment
+    management, equity research and buy/sell-side research) found by a daily scan — hit <b>+ Add to tracker</b> to
+    pull one in, or <b>Dismiss</b> to hide it. Below, click any status badge to cycle it
+    (Check → Open → Opening soon → Closed → Ad hoc → Applied), edit notes inline, and everything saves in this
     browser. Always confirm against the firm's own careers page (linked on each row) before applying.
   </div>
 
@@ -157,6 +187,7 @@
       <option value="tier1">Tier 1</option>
       <option value="tier2">Tier 2</option>
       <option value="owner">Asset owners</option>
+      <option value="new">Discovered (London)</option>
     </select>
     <div class="spacer"></div>
     <button class="mini" id="exportBtn" type="button">⭳ Export</button>
@@ -329,33 +360,68 @@ const SEED = [
    s:"check", note:"Canadian public-sector pension; internship & grad routes. Check live roles."},
 ];
 
+// ===================== NEW_OPENINGS FEED =====================
+// Auto-maintained by the daily tracker Routine. Each item:
+//   {id, firm, role, loc, cat, url, found}
+//   cat ∈ "internship" | "im" | "equity-research" | "research"
+//   id  = stable slug of firm+role+loc (lowercase, hyphenated) so dismissals persist
+// The Routine appends NEW London openings here and trims to the most recent ~40.
+// Do NOT hand-edit ids. User Add/Dismiss actions are stored separately in localStorage.
+const NEW_OPENINGS = [
+  {id:"jpmam-2027-am-investments-summer-internship-london", firm:"J.P. Morgan Asset Management",
+   role:"2027 AM Investments Summer Internship", loc:"London", cat:"im",
+   url:"https://careers.jpmorgan.com/us/en/students/programs/asset-wealth-management-summer-internship", found:"2026-09-15"},
+  {id:"sig-equity-research-analyst-graduate-london", firm:"SIG (Susquehanna)",
+   role:"Equity Research Analyst Graduate Programme (2027/28)", loc:"London", cat:"equity-research",
+   url:"https://careers.sig.com/", found:"2026-09-15"},
+  {id:"fidelity-2027-equity-research-summer-internship-london", firm:"Fidelity International",
+   role:"2027 Summer Internship — Equity Research", loc:"London", cat:"equity-research",
+   url:"https://careers.fidelityinternational.com/early-careers-overview/interns-and-insights/internships/", found:"2026-09-15"},
+  {id:"wellington-2027-summer-internship-london", firm:"Wellington Management",
+   role:"2027 Summer Internship", loc:"London", cat:"internship",
+   url:"https://www.wellington.com/en-gb/professional/about-wellington/campus-programmes", found:"2026-09-15"},
+];
+const CAT = {
+  internship:"Summer internship",
+  im:"Investment management",
+  "equity-research":"Equity research",
+  research:"Research (buy/sell-side)"
+};
+
 const GROUPS = [
   {k:"tier1", label:"Tier 1"},
   {k:"tier2", label:"Tier 2"},
   {k:"owner", label:"Asset owners"},
+  {k:"new",   label:"Discovered — London openings"},
 ];
 
 /* ---------- state ---------- */
-function load(){
-  try{
-    const raw = localStorage.getItem(STORE_KEY);
-    if(raw){ const saved = JSON.parse(raw); return merge(saved); }
-  }catch(e){}
-  return SEED.map((d,i)=>({...d, id:i, updated:null}));
-}
-// merge saved overrides onto seed (keeps new seed rows if list grows)
-function merge(saved){
-  const byName = new Map((saved.items||[]).map(x=>[x.n,x]));
-  return SEED.map((d,i)=>{
-    const o = byName.get(d.n);
-    return {...d, id:i, s:o?o.s:d.s, note:o?o.note:d.note, updated:o?o.updated:null};
+let openState = {dismissed:[], added:[]};   // banner actions, keyed by opening id
+
+function buildData(items, customRows){
+  const overrides = new Map((items||[]).map(x=>[x.n,x]));
+  const seedRows = SEED.map(d=>{
+    const o = overrides.get(d.n);
+    return {...d, s:o?o.s:d.s, note:o?(o.note??d.note):d.note, updated:o?o.updated:null};
   });
+  const custom = (customRows||[]).map(d=>({
+    n:d.n, t:"new", sc:d.sc||"", u:d.u||"#", s:d.s||"open", note:d.note||"", updated:d.updated||null
+  }));
+  return seedRows.concat(custom).map((d,i)=>({...d, id:i}));
+}
+function load(){
+  let store = {};
+  try{ const raw = localStorage.getItem(STORE_KEY); if(raw) store = JSON.parse(raw); }catch(e){}
+  openState = Object.assign({dismissed:[], added:[]}, store.openState||{});
+  return buildData(store.items, store.customRows);
 }
 function save(){
   try{
     localStorage.setItem(STORE_KEY, JSON.stringify({
       v:1, saved:new Date().toISOString(),
-      items:data.map(d=>({n:d.n, s:d.s, note:d.note, updated:d.updated}))
+      items:data.map(d=>({n:d.n, s:d.s, note:d.note, updated:d.updated})),
+      customRows:data.filter(d=>d.t==="new").map(d=>({n:d.n, sc:d.sc, u:d.u, s:d.s, note:d.note, updated:d.updated})),
+      openState
     }));
   }catch(e){}
 }
@@ -468,7 +534,66 @@ function renderList(){
 }
 function autoGrow(ta){ ta.style.height="auto"; ta.style.height=Math.max(32,ta.scrollHeight)+"px"; }
 
-function renderAll(){ renderStats(); renderList(); }
+/* ---------- new-openings banner ---------- */
+function visibleOpenings(){
+  return NEW_OPENINGS.filter(o=>!openState.dismissed.includes(o.id) && !openState.added.includes(o.id));
+}
+function renderBanner(){
+  const el = document.getElementById("newBanner");
+  const items = visibleOpenings();
+  if(!items.length){ el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="nb-head">
+      <div class="nb-title">🆕 ${items.length} new London opening${items.length>1?"s":""} to review</div>
+      <button class="mini" data-act="dismiss-all" type="button">Dismiss all</button>
+    </div>
+    <div class="nb-grid">
+      ${items.map(o=>`
+        <div class="nb-card" data-oid="${o.id}">
+          <div class="nb-cat cat-${o.cat}">${CAT[o.cat]||o.cat}</div>
+          <div class="nb-firm">${o.firm}</div>
+          <div class="nb-role">${o.role}</div>
+          <div class="nb-meta">📍 ${o.loc} · found ${fmtDate(o.found)}</div>
+          <div class="nb-actions">
+            <a class="nb-link" href="${o.url}" target="_blank" rel="noopener">View ↗</a>
+            <button class="nb-add" data-act="add" type="button">+ Add to tracker</button>
+            <button class="nb-dismiss" data-act="dismiss" type="button">Dismiss</button>
+          </div>
+        </div>`).join("")}
+    </div>`;
+  el.querySelector('[data-act="dismiss-all"]').onclick = ()=>{
+    items.forEach(o=>{ if(!openState.dismissed.includes(o.id)) openState.dismissed.push(o.id); });
+    save(); renderBanner();
+  };
+  el.querySelectorAll(".nb-card").forEach(card=>{
+    const o = NEW_OPENINGS.find(x=>x.id===card.dataset.oid);
+    card.querySelector('[data-act="add"]').onclick = ()=>addOpening(o);
+    card.querySelector('[data-act="dismiss"]').onclick = ()=>{
+      openState.dismissed.push(o.id); save(); renderBanner();
+    };
+  });
+}
+function addOpening(o){
+  const fl = o.firm.toLowerCase();
+  const existing = data.find(d=>{
+    const dl = d.n.toLowerCase();
+    return dl===fl || dl.includes(fl) || fl.includes(dl);
+  });
+  const line = `[${CAT[o.cat]||o.cat}] ${o.role} — ${o.loc} (found ${fmtDate(o.found)}). ${o.url}`;
+  if(existing){
+    existing.s = "open";
+    existing.note = existing.note ? (line + "\n" + existing.note) : line;
+    existing.updated = new Date().toISOString();
+  }else{
+    data.push({id:data.length, n:o.firm, t:"new", sc:`${o.role} · ${o.loc}`,
+      u:o.url, s:"open", note:line, updated:new Date().toISOString()});
+  }
+  if(!openState.added.includes(o.id)) openState.added.push(o.id);
+  save(); renderAll();
+}
+
+function renderAll(){ renderBanner(); renderStats(); renderList(); }
 
 /* ---------- controls ---------- */
 $("#search").addEventListener("input", e=>{ q = e.target.value.trim().toLowerCase(); renderList(); });
@@ -476,7 +601,8 @@ $("#tierFilter").addEventListener("change", e=>{ filterTier = e.target.value; re
 
 $("#exportBtn").onclick = ()=>{
   const blob = new Blob([JSON.stringify({v:1, exported:new Date().toISOString(),
-    items:data.map(d=>({n:d.n, t:d.t, s:d.s, note:d.note, updated:d.updated}))}, null, 2)],
+    items:data.map(d=>({n:d.n, t:d.t, sc:d.sc, u:d.u, s:d.s, note:d.note, updated:d.updated})),
+    openState}, null, 2)],
     {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -491,7 +617,10 @@ $("#fileInput").addEventListener("change", e=>{
   r.onload = ()=>{
     try{
       const parsed = JSON.parse(r.result);
-      data = merge({items:parsed.items||[]});
+      const items = parsed.items||[];
+      const custom = items.filter(x=>x.t==="new");
+      data = buildData(items, custom);
+      if(parsed.openState) openState = Object.assign({dismissed:[],added:[]}, parsed.openState);
       save(); renderAll();
     }catch(err){ alert("Could not read that file — expected a JSON export from this tracker."); }
   };
@@ -501,7 +630,8 @@ $("#fileInput").addEventListener("change", e=>{
 $("#resetBtn").onclick = ()=>{
   if(confirm("Reset all statuses and notes back to the seeded data? Your edits will be lost.")){
     try{ localStorage.removeItem(STORE_KEY); }catch(e){}
-    data = SEED.map((d,i)=>({...d, id:i, updated:null}));
+    openState = {dismissed:[], added:[]};
+    data = buildData([], []);
     renderAll();
   }
 };
