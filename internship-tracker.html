@@ -258,7 +258,7 @@ const SEED = [
   {t:"tier1", n:"DWS (Summer + PACE)", sc:"P.A.C.E. grad + summer internship", u:"https://www.dws-earlycareers.groupgti.com/",
    s:"soon", note:"2027 Spring internships live. Summer internships + PACE graduate = register interest, opening soon."},
   {t:"tier1", n:"Fidelity International", sc:"10-wk summer internship → grad", u:"https://careers.fidelityinternational.com/early-careers-overview/",
-   s:"soon", note:"Register interest now; 2027 summer applications open Autumn 2026. Penultimate-year, any discipline."},
+   s:"open", note:"OPEN: 2027 Summer Internships live (Equity Research, Fixed Income, Multi Asset, Investment Directing) — deadline 15 Nov 2026. Penultimate-year, any discipline."},
   {t:"tier1", n:"Vanguard", sc:"Internship / early careers", u:"https://www.vanguardjobs.com/students-and-grads/",
    s:"check", note:"Check UK/EU early-careers listings; most structured programmes are US-based."},
   {t:"tier1", n:"PIMCO", sc:"Analyst / summer internship", u:"https://www.pimco.com/en-us/our-firm/careers/students",
@@ -336,7 +336,7 @@ const SEED = [
   {t:"tier2", n:"Insight Investment", sc:"Graduate scheme", u:"https://www.insightinvestment.com/careers/",
    s:"check", note:"Fixed-income/LDI specialist; runs a graduate scheme. Verify 2027 opening."},
   {t:"tier2", n:"Capital Group", sc:"Associate / internship", u:"https://www.capitalgroup.com/global/careers.html",
-   s:"check", note:"Runs London associate & internship programmes. Check live reqs and deadlines."},
+   s:"open", note:"OPEN: CAP Summer Associate — Europe (2027) posted (Workday req JR7201); ~10 places globally across London/LA/Singapore. Final-year or up to 1yr post-grad."},
   {t:"tier2", n:"BNP Paribas AM", sc:"Graduate / internship", u:"https://group.bnpparibas/en/careers",
    s:"check", note:"Early careers via BNP Paribas group portal (VIE, internships, grad). Filter for AM roles."},
   {t:"tier2", n:"T. Rowe Price", sc:"Summer internship (London)", u:"https://www.troweprice.com/en/careers",
@@ -393,9 +393,31 @@ const SEED = [
 //   id  = stable slug of firm+role+loc (lowercase, hyphenated) so dismissals persist
 //   found = ISO datetime the posting was seen (used to enforce the 24h window client-side)
 // Do NOT hand-edit ids. User Add/Dismiss actions are stored separately (localStorage + db).
-const NEW_OPENINGS = [];
+const NEW_OPENINGS = [
+  {id:"barclays-equity-research-analyst-graduate-london", firm:"Barclays",
+   role:"Equity Research Analyst Graduate Programme (2027)", loc:"London", cat:"equity-research",
+   url:"https://search.jobs.barclays/graduates-research", found:"2026-09-16T07:12:00Z"},
+  {id:"rothschild-redburn-research-summer-intern-2027-london", firm:"Rothschild & Co Redburn",
+   role:"2027 UK Redburn Research Summer Intern Programme", loc:"London", cat:"research",
+   url:"https://www.rothschildandco.com/en/careers/students-and-graduates/opportunities/2027-uk-rothschild-co-redburn-research-summer-intern-programme-london/", found:"2026-09-16T07:12:00Z"},
+  {id:"point72-academy-investment-analyst-program-2027-london", firm:"Point72",
+   role:"Academy Investment Analyst Program for Upcoming Graduates (2027)", loc:"London", cat:"im",
+   url:"https://careers.point72.com/CSJobDetail?jobName=point72-academy-investment-analyst-program-for-upcoming-graduates-2027-uk-&jobCode=CPA-0014890&location=London", found:"2026-09-16T07:12:00Z"},
+  {id:"blackrock-2027-summer-internship-program-emea-london", firm:"BlackRock",
+   role:"2027 Summer Internship Program (EMEA)", loc:"London", cat:"internship",
+   url:"https://careers.blackrock.com/job/london/2027-summer-internship-program-emea/45831/97150826672", found:"2026-09-16T07:12:00Z"},
+  {id:"schroders-2027-public-markets-equities-internship-london", firm:"Schroders",
+   role:"2027 Public Markets Equities Internship Programme", loc:"London", cat:"internship",
+   url:"https://ekbq.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_2/job/1940", found:"2026-09-16T07:12:00Z"},
+  {id:"sig-equity-research-internship-summer-2027-london", firm:"SIG (Susquehanna)",
+   role:"Equity Research Internship — Summer 2027", loc:"London", cat:"equity-research",
+   url:"https://careers.sig.com/quantitative-trading-internships-co-ops/jobs/11085?lang=en-us", found:"2026-09-16T07:12:00Z"},
+  {id:"capital-group-cap-summer-associate-europe-2027-london", firm:"Capital Group",
+   role:"CAP Summer Associate — Europe (2027)", loc:"London", cat:"im",
+   url:"https://capgroup.wd1.myworkdayjobs.com/en-US/capitalgroupcareers/job/CAP-Summer-Associate---Europe--2027-_JR7201", found:"2026-09-16T07:12:00Z"},
+];
 // ISO timestamp of the most recent scan (the Routine updates this each run).
-const LAST_SCAN = "2026-09-16T07:06:00Z";
+const LAST_SCAN = "2026-09-16T07:12:00Z";
 // Only postings newer than this many hours appear in the banner.
 const WINDOW_HOURS = 24;
 
