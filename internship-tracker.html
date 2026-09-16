@@ -99,6 +99,9 @@
   .nb-dismiss:hover{color:var(--ink);border-color:var(--check-dot);background:var(--neutral-bg)}
   .nb-empty{font-size:13px;color:var(--muted);padding:6px 2px 2px}
   .nb-empty b{color:var(--ink)}
+  .nb-scanbtn{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:9px;
+    padding:8px 12px;font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:.12s}
+  .nb-scanbtn:hover{filter:brightness(1.08)}
 
   /* stat tiles */
   .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:18px 0 4px}
@@ -107,7 +110,7 @@
   .tile:hover{border-color:var(--accent);transform:translateY(-1px)}
   .tile.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
   .tile .num{font-size:23px;font-weight:700;letter-spacing:-.02em}
-  .tile .lbl{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:2px}
+  .tile .lbl{font-size:11.5px;color:var(--ink);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:2px}
   .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;display:inline-block}
 
   /* controls */
@@ -420,6 +423,26 @@ const NEW_OPENINGS = [
 const LAST_SCAN = "2026-09-16T07:12:00Z";
 // Only postings newer than this many hours appear in the banner.
 const WINDOW_HOURS = 24;
+// Live "Scan now" link — opens a LinkedIn Jobs search for London roles posted in the
+// last 24h (f_TPR=r86400). Lets you scan the sources yourself on demand; the automated
+// agent scan still runs every morning at 07:00.
+const SCAN_URL = "https://www.linkedin.com/jobs/search/?keywords=asset%20management%20OR%20equity%20research%20OR%20investment%20management%20OR%20research%20analyst&location=London%2C%20England%2C%20United%20Kingdom&f_TPR=r86400";
+// Rolling history of opening ids already surfaced in the banner, maintained by the
+// Routine. Each morning the scan skips any candidate whose id (or URL) is already here,
+// so the same posting is never shown on two different days. Capped to the most recent ~300.
+const SEEN_IDS = [
+  "barclays-equity-research-analyst-graduate-london",
+  "rothschild-redburn-research-summer-intern-2027-london",
+  "point72-academy-investment-analyst-program-2027-london",
+  "blackrock-2027-summer-internship-program-emea-london",
+  "schroders-2027-public-markets-equities-internship-london",
+  "sig-equity-research-internship-summer-2027-london",
+  "capital-group-cap-summer-associate-europe-2027-london",
+  "jpmam-2027-am-investments-summer-internship-london",
+  "sig-equity-research-analyst-graduate-london",
+  "fidelity-2027-equity-research-summer-internship-london",
+  "wellington-2027-summer-internship-london",
+];
 
 const CAT = {
   internship:"Summer internship",
@@ -607,7 +630,15 @@ function withinWindow(o){
   return (Date.now() - t) <= WINDOW_HOURS*3600000;
 }
 function visibleOpenings(){
-  return NEW_OPENINGS.filter(o=>
+  // de-duplicate by id AND by URL so the same posting can never appear twice,
+  // then apply the 24h window and hide anything already added or dismissed.
+  const byId = new Map(); const seenUrl = new Set();
+  NEW_OPENINGS.forEach(o=>{
+    const u = (o.url||"").trim();
+    if(byId.has(o.id) || (u && seenUrl.has(u))) return;
+    byId.set(o.id, o); if(u) seenUrl.add(u);
+  });
+  return [...byId.values()].filter(o=>
     withinWindow(o) &&
     !openState.dismissed.includes(o.id) &&
     !openState.added.includes(o.id));
@@ -616,14 +647,16 @@ function renderBanner(){
   const el = document.getElementById("newBanner");
   const items = visibleOpenings();
   const scanTxt = LAST_SCAN ? `scanned ${fmtWhen(LAST_SCAN)}` : "";
+  const scanBtn = `<a class="nb-scanbtn" href="${SCAN_URL}" target="_blank" rel="noopener" title="Opens a LinkedIn Jobs search for London roles posted in the last 24 hours">🔎 Scan now ↗</a>`;
   if(!items.length){
     el.innerHTML = `
       <div class="nb-head">
         <div class="nb-title">🆕 New London postings <span class="nb-pill">last 24h</span></div>
         <div class="nb-spacer"></div>
         <span class="nb-scan">${scanTxt}</span>
+        ${scanBtn}
       </div>
-      <div class="nb-empty">No new London postings in the last 24 hours. The 07:00 scan checks the web and LinkedIn every morning — check back tomorrow.</div>`;
+      <div class="nb-empty">No new London postings in the last 24 hours. The 07:00 scan checks the web and LinkedIn every morning — or hit <b>Scan now</b> to search the sources yourself.</div>`;
     return;
   }
   el.innerHTML = `
@@ -631,6 +664,7 @@ function renderBanner(){
       <div class="nb-title">🆕 New London postings <span class="nb-pill">${items.length} · last 24h</span></div>
       <div class="nb-spacer"></div>
       <span class="nb-scan">${scanTxt}</span>
+      ${scanBtn}
       <button class="mini" data-act="dismiss-all" type="button">Dismiss all</button>
     </div>
     <div class="nb-grid">
