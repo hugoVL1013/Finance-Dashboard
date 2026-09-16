@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asset Management Early Careers Tracker</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#171a1f; --muted:#5b6470;
+    --line:#e5e8ee; --line2:#eef1f5; --accent:#3b5bdb; --accent-2:#5b7cf5; --accent-soft:#edf1ff;
+    --open-bg:#e6f6ec; --open-ink:#127a37; --open-dot:#20a355;
+    --soon-bg:#fff3dd; --soon-ink:#956100; --soon-dot:#e8930c;
+    --closed-bg:#fdeaea; --closed-ink:#b02525; --closed-dot:#d84040;
+    --check-bg:#eef1f5; --check-ink:#586274; --check-dot:#b3bcc8;
+    --applied-bg:#ece7fb; --applied-ink:#6741c9; --applied-dot:#8a63e0;
+    --neutral-bg:#eef1f5; --neutral-dot:#aeb7c2;
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.05);
+    --shadow-lg:0 6px 24px -10px rgba(16,24,40,.22);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1015; --panel:#171b22; --ink:#e8ebef; --muted:#98a2b0;
+      --line:#272d38; --line2:#20252e; --accent:#7c94f2; --accent-2:#8aa0f6; --accent-soft:#1b2333;
+      --open-bg:#123020; --open-ink:#57d98a; --open-dot:#2fae63;
+      --soon-bg:#33260c; --soon-ink:#f2bd55; --soon-dot:#e8930c;
+      --closed-bg:#3a1c1c; --closed-ink:#f08a8a; --closed-dot:#d84040;
+      --check-bg:#20252e; --check-ink:#98a2b0; --check-dot:#3c4552;
+      --applied-bg:#241a3d; --applied-ink:#b39bf0; --applied-dot:#8a63e0;
+      --neutral-bg:#20252e; --neutral-dot:#5a6472;
+      --shadow:0 1px 2px rgba(0,0,0,.35);
+      --shadow-lg:0 10px 30px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1015; --panel:#171b22; --ink:#e8ebef; --muted:#98a2b0;
+    --line:#272d38; --line2:#20252e; --accent:#7c94f2; --accent-2:#8aa0f6; --accent-soft:#1b2333;
+    --open-bg:#123020; --open-ink:#57d98a; --open-dot:#2fae63;
+    --soon-bg:#33260c; --soon-ink:#f2bd55; --soon-dot:#e8930c;
+    --closed-bg:#3a1c1c; --closed-ink:#f08a8a; --closed-dot:#d84040;
+    --check-bg:#20252e; --check-ink:#98a2b0; --check-dot:#3c4552;
+    --applied-bg:#241a3d; --applied-ink:#b39bf0; --applied-dot:#8a63e0;
+    --neutral-bg:#20252e; --neutral-dot:#5a6472;
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+    --shadow-lg:0 10px 30px -12px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .wrap{max-width:1140px;margin:0 auto;padding:26px 18px 72px}
+
+  /* header */
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;justify-content:space-between;margin-bottom:6px}
+  .brand{display:flex;align-items:center;gap:13px;min-width:0}
+  .mark{width:42px;height:42px;flex:0 0 auto;border-radius:12px;display:grid;place-items:center;font-size:21px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:var(--shadow-lg)}
+  h1{font-size:21px;margin:0;letter-spacing:-.02em;line-height:1.2}
+  .sub{color:var(--muted);margin:3px 0 0;font-size:12.5px}
+  .theme-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);
+    border-radius:9px;padding:8px 13px;cursor:pointer;font-size:12.5px;transition:.12s}
+  .theme-btn:hover{color:var(--ink);border-color:var(--accent)}
+
+  /* info strip */
+  .info{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:12px 15px;font-size:12.5px;color:var(--muted);margin:16px 0 0;box-shadow:var(--shadow)}
+  .info b{color:var(--ink)}
+
+  /* new-openings banner */
+  #newBanner{margin-top:16px;background:linear-gradient(180deg,var(--accent-soft),transparent 120%);
+    border:1px solid var(--line);border-radius:16px;padding:16px 16px 18px;box-shadow:var(--shadow)}
+  .nb-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 13px}
+  .nb-title{font-size:15.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+  .nb-pill{font-size:11.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:20px;padding:2px 9px}
+  .nb-scan{font-size:11.5px;color:var(--muted)}
+  .nb-spacer{flex:1 1 auto}
+  .nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}
+  .nb-card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:13px 14px;box-shadow:var(--shadow);transition:transform .1s, box-shadow .12s, border-color .12s}
+  .nb-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg);border-color:var(--accent)}
+  .nb-cat{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:3px 9px;border-radius:20px;margin-bottom:9px}
+  .cat-internship{background:var(--open-bg);color:var(--open-ink)}
+  .cat-im{background:var(--accent-soft);color:var(--accent)}
+  .cat-equity-research{background:var(--soon-bg);color:var(--soon-ink)}
+  .cat-research{background:var(--applied-bg);color:var(--applied-ink)}
+  .nb-firm{font-weight:700;font-size:14px;line-height:1.25}
+  .nb-role{font-size:12.5px;color:var(--ink);margin-top:2px}
+  .nb-meta{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .nb-actions{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:12px}
+  .nb-link{font-size:12px;color:var(--accent);text-decoration:none;margin-right:auto;font-weight:600}
+  .nb-link:hover{text-decoration:underline}
+  .nb-add{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:6px 11px;
+    font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
+  .nb-add:hover{filter:brightness(1.08)}
+  .nb-dismiss{border:1px solid var(--line);background:transparent;color:var(--muted);
+    border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;transition:.12s}
+  .nb-dismiss:hover{color:var(--ink);border-color:var(--check-dot);background:var(--neutral-bg)}
+  .nb-empty{font-size:13px;color:var(--muted);padding:6px 2px 2px}
+  .nb-empty b{color:var(--ink)}
+  .nb-scanbtn{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:9px;
+    padding:8px 12px;font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:.12s}
+  .nb-scanbtn:hover{filter:brightness(1.08)}
+
+  /* stat tiles */
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:18px 0 4px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:13px 14px;box-shadow:var(--shadow);cursor:pointer;transition:.12s;text-align:left}
+  .tile:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .tile.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .tile .num{font-size:23px;font-weight:700;letter-spacing:-.02em}
+  .tile .lbl{font-size:11.5px;color:var(--ink);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:2px}
+  .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;display:inline-block}
+
+  /* controls */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 4px}
+  .search{flex:1 1 240px;min-width:180px;display:flex;align-items:center;gap:8px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 13px;transition:.12s}
+  .search:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .search input{border:0;background:transparent;color:var(--ink);width:100%;outline:none;font-size:14px}
+  select,.mini{border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    border-radius:10px;padding:9px 13px;font-size:13px;cursor:pointer;transition:.12s}
+  .mini{color:var(--muted)}
+  .mini:hover{color:var(--ink);border-color:var(--accent)}
+  .synced{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    color:var(--open-ink);background:var(--open-bg);border-radius:10px;padding:9px 13px}
+  .spacer{flex:1 1 auto}
+
+  /* list */
+  .group{margin-top:22px}
+  .group h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    margin:0 0 9px;padding-left:2px;display:flex;align-items:center;gap:8px}
+  .group h2 .count{background:var(--neutral-bg);color:var(--muted);border-radius:20px;
+    padding:2px 9px;font-size:11px;letter-spacing:0;font-weight:600}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:15px;
+    overflow:hidden;box-shadow:var(--shadow)}
+  .row{display:grid;grid-template-columns:minmax(180px,1.4fr) 150px minmax(160px,2fr) 100px;
+    gap:12px;align-items:center;padding:13px 16px;border-top:1px solid var(--line2);transition:background .1s}
+  .row:first-child{border-top:0}
+  .row:hover{background:var(--accent-soft)}
+  .name{font-weight:600;display:flex;flex-direction:column;gap:2px;min-width:0}
+  .name a{color:inherit;text-decoration:none}
+  .name a:hover{color:var(--accent);text-decoration:underline}
+  .name .scheme{font-weight:400;font-size:11.5px;color:var(--muted)}
+
+  .badge{display:inline-flex;align-items:center;gap:7px;border:0;cursor:pointer;
+    border-radius:20px;padding:6px 12px 6px 10px;font-size:12px;font-weight:600;
+    white-space:nowrap;width:fit-content;user-select:none;transition:.1s}
+  .badge:hover{filter:brightness(.98)}
+  .badge:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .s-open{background:var(--open-bg);color:var(--open-ink)}   .s-open .dot{background:var(--open-dot)}
+  .s-soon{background:var(--soon-bg);color:var(--soon-ink)}   .s-soon .dot{background:var(--soon-dot)}
+  .s-closed{background:var(--closed-bg);color:var(--closed-ink)} .s-closed .dot{background:var(--closed-dot)}
+  .s-check{background:var(--check-bg);color:var(--check-ink)} .s-check .dot{background:var(--check-dot)}
+  .s-applied{background:var(--applied-bg);color:var(--applied-ink)} .s-applied .dot{background:var(--applied-dot)}
+
+  .note{font-size:12.5px;color:var(--muted)}
+  .note textarea{width:100%;border:1px solid transparent;background:transparent;color:var(--ink);
+    font:inherit;resize:vertical;border-radius:8px;padding:6px 8px;min-height:34px;line-height:1.4}
+  .note textarea:hover{border-color:var(--line)}
+  .note textarea:focus{border-color:var(--accent);outline:none;background:var(--bg)}
+  .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.35}
+  .meta .link{display:inline-block;margin-top:3px;color:var(--accent);text-decoration:none}
+  .meta .link:hover{text-decoration:underline}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .empty{padding:26px 16px;text-align:center;color:var(--muted)}
+
+  .foot{margin-top:28px;color:var(--muted);font-size:12px;line-height:1.65}
+  .foot code{background:var(--neutral-bg);padding:1px 6px;border-radius:6px}
+
+  @media(max-width:820px){
+    .stats{grid-template-columns:repeat(3,1fr)}
+    .row{grid-template-columns:1fr;gap:8px}
+    .meta{text-align:left}
+    .row>*{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark">📋</div>
+      <div>
+        <h1>Asset Management — Early Careers Tracker</h1>
+        <p class="sub">Summer internships &amp; graduate programmes · web + LinkedIn scan every day at 07:00</p>
+      </div>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">◐ Theme</button>
+  </header>
+
+  <section id="newBanner"></section>
+
+  <div class="info">
+    <b>How this works:</b> the banner above lists <b>only London job postings found in the last 24 hours</b> —
+    summer internships, investment management, equity research and buy/sell-side research — from a daily 07:00 scan of
+    the web and LinkedIn. Hit <b>+ Add to tracker</b> to pull one into your list, or <b>Dismiss</b> to hide it. Below,
+    click any status badge to cycle it (Check → Open → Opening soon → Closed → Applied) and edit notes inline —
+    everything syncs to your account. Always confirm on the firm's own careers page before applying.
+  </div>
+
+  <section class="stats" id="stats"></section>
+
+  <div class="controls">
+    <label class="search">
+      <span aria-hidden="true">🔎</span>
+      <input id="search" type="search" placeholder="Search company or notes…" autocomplete="off">
+    </label>
+    <select id="tierFilter">
+      <option value="">All groups</option>
+      <option value="tier1">Tier 1</option>
+      <option value="tier2">Tier 2</option>
+      <option value="owner">Asset owners</option>
+      <option value="new">Discovered (London)</option>
+    </select>
+    <div class="spacer"></div>
+    <span id="syncBadge" class="synced" hidden title="Your statuses and notes are saved to your Claude account and sync across your devices">☁ Synced to your account</span>
+    <button class="mini" id="exportBtn" type="button">⭳ Export</button>
+    <button class="mini" id="importBtn" type="button">⭱ Import</button>
+    <button class="mini" id="resetBtn" type="button">↺ Reset</button>
+    <input id="fileInput" type="file" accept="application/json" hidden>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div id="list"></div>
+
+  <div class="foot">
+    <p><b>Coverage.</b> All firms from your list are tracked (62 across Tier 1, Tier 2 and asset owners). The big houses
+    run structured, dated internship / graduate schemes — those are the rows worth watching for an "opens" date. The
+    smaller Tier 1 boutiques (Fundsmith, Lindsell Train, Veritas, Findlay Park, Silchester, Egerton, Lansdowne, Marathon,
+    Troy, Guinness and similar) don't run formal cycles; they're marked <b>Check</b> with a note explaining they hire
+    opportunistically — so apply speculatively rather than waiting for a window.</p>
+    <p><b>Persistence.</b> Opened as a published Artifact while signed in, your statuses and notes save to your Claude
+    account and <b>sync across your devices</b> automatically (look for the “☁ Synced” badge). Opened as a plain HTML
+    file, edits stay in that browser with <b>Export</b> / <b>Import</b> for backups. <b>Reset</b> returns to the seeded data.</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+const STORE_KEY = "am-earlycareers-tracker-v1";
+
+// status options + colours for cycling (Ad hoc removed)
+const STATUSES = [
+  {k:"check",  label:"Check",        cls:"s-check"},
+  {k:"open",   label:"Open now",     cls:"s-open"},
+  {k:"soon",   label:"Opening soon", cls:"s-soon"},
+  {k:"closed", label:"Closed",       cls:"s-closed"},
+  {k:"applied",label:"Applied",      cls:"s-applied"},
+];
+const S = Object.fromEntries(STATUSES.map(s=>[s.k,s]));
+const normStatus = s => (S[s] ? s : "check");   // migrate any legacy "adhoc" values
+
+// Seed data — status/notes reflect public research as of 15 Sep 2026. Verify on each careers page.
+const SEED = [
+  // ---------- TIER 1 ----------
+  {t:"tier1", n:"DWS (Summer + PACE)", sc:"P.A.C.E. grad + summer internship", u:"https://www.dws-earlycareers.groupgti.com/",
+   s:"soon", note:"2027 Spring internships live. Summer internships + PACE graduate = register interest, opening soon."},
+  {t:"tier1", n:"Fidelity International", sc:"10-wk summer internship → grad", u:"https://careers.fidelityinternational.com/early-careers-overview/",
+   s:"open", note:"OPEN: 2027 Summer Internships live (Equity Research, Fixed Income, Multi Asset, Investment Directing) — deadline 15 Nov 2026. Penultimate-year, any discipline."},
+  {t:"tier1", n:"Vanguard", sc:"Internship / early careers", u:"https://www.vanguardjobs.com/students-and-grads/",
+   s:"check", note:"Check UK/EU early-careers listings; most structured programmes are US-based."},
+  {t:"tier1", n:"PIMCO", sc:"Analyst / summer internship", u:"https://www.pimco.com/en-us/our-firm/careers/students",
+   s:"check", note:"Analyst & internship programmes; deadlines cluster in autumn — verify current reqs."},
+  {t:"tier1", n:"Wellington Management", sc:"10-wk summer internship", u:"https://www.wellington.com/en-gb/professional/about-wellington/campus-programmes",
+   s:"open", note:"2027 cycle opens mid-Sep 2026, hard deadline late Oct. Reviewed after deadline — no early-bird edge."},
+  {t:"tier1", n:"Legal & General IM (LGIM)", sc:"Grad scheme + 8-wk internship", u:"https://careers.legalandgeneral.com/graduate-scheme",
+   s:"soon", note:"Graduate applications open ~October, internships ~November 2026. Some roles later — watch site."},
+  {t:"tier1", n:"M&G", sc:"Grad scheme + 8-wk internship", u:"https://group.mandg.com/careers/routes-into-mandg/early-careers",
+   s:"soon", note:"2027 graduate intake opens October 2026. Internship is penultimate-year, converts to grad scheme."},
+  {t:"tier1", n:"Baillie Gifford", sc:"Investment Research grad + internships", u:"https://www.bailliegifford.com/en/uk/individual-investors/careers/early-careers/",
+   s:"open", note:"OPEN: 2027 Investment Research grad programme + Technology summer internships opened 15 Sep 2026 (Edinburgh)."},
+  {t:"tier1", n:"Invesco", sc:"Internship / trainee (Henley)", u:"https://careers.invesco.com/early-careers/",
+   s:"open", note:"2027 cycle opening Sep–Oct 2026 on Workday; rolling review — apply early, some postings fill fast."},
+  {t:"tier1", n:"Morgan Stanley IM", sc:"IM Summer Analyst (10 wks)", u:"https://www.morganstanley.com/campus",
+   s:"open", note:"OPEN & closing soon: several 2027 IM Summer Analyst roles deadline 25 Sep 2026 (HireVue by 27 Sep)."},
+  {t:"tier1", n:"Amundi", sc:"Graduate programme / internships", u:"https://about.amundi.com/Amundi-careers",
+   s:"check", note:"Amundi Graduate Programme + internships (mostly Paris/EU). Verify current openings."},
+  {t:"tier1", n:"AXA IM", sc:"Graduate programme / internships", u:"https://www.axa-im.com/careers/early-careers",
+   s:"check", note:"Graduate programme and internships across London/Paris. Check live roles."},
+  {t:"tier1", n:"Acadian Asset Management", sc:"Quant internship (limited)", u:"https://www.acadian-asset.com/about-us/careers",
+   s:"check", note:"Quant shop; small, mostly Boston-based internships. Limited structured early careers."},
+  {t:"tier1", n:"Dimensional (DFA)", sc:"Associate / internship programme", u:"https://www.dimensional.com/careers",
+   s:"check", note:"Runs structured associate & internship programmes (London/US). Verify current windows."},
+  {t:"tier1", n:"Robeco", sc:"Traineeship / internships", u:"https://www.robeco.com/en-int/careers",
+   s:"check", note:"Traineeships & internships, mostly Rotterdam. Check live listings."},
+  {t:"tier1", n:"Lindsell Train", sc:"Boutique — no formal scheme", u:"https://www.lindselltrain.com/",
+   s:"check", note:"Small boutique; no structured grad/intern cycle. Speculative / occasional roles only — monitor."},
+  {t:"tier1", n:"Ruffer", sc:"Graduate programme", u:"https://ruffer.co.uk/en/Careers",
+   s:"check", note:"Runs a structured graduate programme (London/Edinburgh). Check for the 2027 window."},
+  {t:"tier1", n:"Troy Asset Management", sc:"Boutique — no formal scheme", u:"https://www.taml.co.uk/",
+   s:"check", note:"Small boutique; hires opportunistically. No published grad/intern cycle — monitor / speculative."},
+  {t:"tier1", n:"Fundsmith", sc:"Boutique — no formal scheme", u:"https://www.fundsmith.co.uk/",
+   s:"check", note:"Very small team; no structured early-careers programme. Speculative only — monitor site."},
+  {t:"tier1", n:"Veritas Asset Management", sc:"Boutique — no formal scheme", u:"https://www.veritas-asset.com/",
+   s:"check", note:"Boutique; no published grad scheme. Occasional / speculative roles — monitor."},
+  {t:"tier1", n:"Findlay Park", sc:"Boutique — no formal scheme", u:"https://www.findlaypark.com/",
+   s:"check", note:"Single-strategy boutique; no structured early-careers cycle — monitor / speculative."},
+  {t:"tier1", n:"Silchester International", sc:"Boutique — no formal scheme", u:"https://www.silchester.com/",
+   s:"check", note:"Low-profile value boutique; no published grad/intern programme — monitor / speculative."},
+  {t:"tier1", n:"Egerton Capital", sc:"Hedge fund — no formal scheme", u:"https://www.egertoncapital.com/",
+   s:"check", note:"Long/short equity fund; hires selectively, no structured cycle — monitor / speculative."},
+  {t:"tier1", n:"Lansdowne Partners", sc:"Hedge fund — no formal scheme", u:"https://www.lansdownepartners.com/",
+   s:"check", note:"Hedge fund; opportunistic hiring, no published grad programme — monitor / speculative."},
+  {t:"tier1", n:"Marathon Asset Management", sc:"Boutique — no formal scheme", u:"https://www.marathon.co.uk/",
+   s:"check", note:"London global-equity boutique (not the US credit firm). No structured cycle — monitor / speculative."},
+  {t:"tier1", n:"Polar Capital", sc:"Occasional grad / internship", u:"https://www.polarcapital.co.uk/gb/about-us/careers/",
+   s:"check", note:"Boutique multi-team manager; occasional early-careers roles — check listings."},
+  {t:"tier1", n:"Artemis", sc:"Occasional early careers", u:"https://www.artemisfunds.com/en/about-artemis/careers",
+   s:"check", note:"Active-equity boutique; runs occasional internships/grad roles — verify."},
+  {t:"tier1", n:"Liontrust", sc:"Occasional early careers", u:"https://www.liontrust.co.uk/about-us/careers",
+   s:"check", note:"Occasional early-careers openings; no large annual cohort. Check site."},
+  {t:"tier1", n:"Somerset Capital", sc:"EM boutique — wound down", u:"https://www.somersetcm.com/",
+   s:"closed", note:"⚠ Somerset Capital Management wound down / closed to new business in 2024. Verify firm status before applying."},
+  {t:"tier1", n:"Stewart Investors", sc:"Part of First Sentier", u:"https://www.stewartinvestors.com/all/about-us/careers.html",
+   s:"check", note:"Sustainable-equity team within First Sentier; early-careers via First Sentier — check listings."},
+  {t:"tier1", n:"Comgest", sc:"Analyst / graduate (Paris)", u:"https://www.comgest.com/en/about-us/careers",
+   s:"check", note:"Quality-growth boutique; analyst/graduate hiring mainly Paris. Verify roles."},
+  {t:"tier1", n:"Setanta Asset Management", sc:"Boutique (Dublin)", u:"https://www.setanta-asset.com/",
+   s:"check", note:"Dublin value boutique (part of Great-West/iA). No published grad cycle — monitor / speculative."},
+  {t:"tier1", n:"Guinness Global Investors", sc:"Boutique — no formal scheme", u:"https://www.guinnessgi.com/about-us/careers",
+   s:"check", note:"Boutique; occasional analyst roles, no structured intern/grad cycle — monitor / speculative."},
+  {t:"tier1", n:"Sloane Robinson", sc:"Boutique — winding down", u:"https://www.sloanerobinson.com/",
+   s:"check", note:"EM-focused firm; much reduced in scale. No structured early-careers programme — verify status."},
+  {t:"tier1", n:"Pelham Capital", sc:"Hedge fund — no formal scheme", u:"https://www.pelhamcapital.com/",
+   s:"check", note:"Long/short equity fund; selective hiring, no published grad programme — monitor / speculative."},
+
+  // ---------- TIER 2 ----------
+  {t:"tier2", n:"Janus Henderson", sc:"Grad analyst + 10–12wk internship", u:"https://www.janushenderson.com/corporate/careers/early-careers/",
+   s:"soon", note:"Associate Analyst grad (3× rotations) + summer internships across EMEA/US; CFA/IMC support. Verify 2027 window."},
+  {t:"tier2", n:"Columbia Threadneedle", sc:"24-mo grad + 10-wk internship", u:"https://www.columbiathreadneedle.com/en/gb/private/careers/early-careers/",
+   s:"soon", note:"2027 summer internship listed; dates TBC. 24-month rotational grad (first rotation in Global Research)."},
+  {t:"tier2", n:"Aberdeen (abrdn)", sc:"10-wk internship + 24-mo grad", u:"https://www.aberdeenplc.com/en-gb/careers/early-careers",
+   s:"open", note:"Internship + grad programme; closing date Wed 5 Nov 2026 (may close early). Grad starts Sep 2027."},
+  {t:"tier2", n:"Insight Investment", sc:"Graduate scheme", u:"https://www.insightinvestment.com/careers/",
+   s:"check", note:"Fixed-income/LDI specialist; runs a graduate scheme. Verify 2027 opening."},
+  {t:"tier2", n:"Capital Group", sc:"Associate / internship", u:"https://www.capitalgroup.com/global/careers.html",
+   s:"open", note:"OPEN: CAP Summer Associate — Europe (2027) posted (Workday req JR7201); ~10 places globally across London/LA/Singapore. Final-year or up to 1yr post-grad."},
+  {t:"tier2", n:"BNP Paribas AM", sc:"Graduate / internship", u:"https://group.bnpparibas/en/careers",
+   s:"check", note:"Early careers via BNP Paribas group portal (VIE, internships, grad). Filter for AM roles."},
+  {t:"tier2", n:"T. Rowe Price", sc:"Summer internship (London)", u:"https://www.troweprice.com/en/careers",
+   s:"check", note:"Summer internship & analyst programmes incl. London. Autumn deadlines — verify."},
+  {t:"tier2", n:"MFS", sc:"Internship programme", u:"https://www.mfs.com/en-us/what-we-do/careers.html",
+   s:"check", note:"Internships mainly Boston; some London roles. Check current listings."},
+  {t:"tier2", n:"Northern Trust AM", sc:"Graduate / early careers", u:"https://www.northerntrust.com/united-kingdom/careers",
+   s:"check", note:"Graduate & internship routes (incl. London). Verify AM-specific openings."},
+  {t:"tier2", n:"AllianceBernstein", sc:"Analyst / internship", u:"https://www.alliancebernstein.com/corporate/en/careers.html",
+   s:"check", note:"Structured analyst & summer internship programmes; autumn deadlines — verify."},
+  {t:"tier2", n:"Neuberger Berman", sc:"Analyst / summer internship", u:"https://www.nb.com/en/global/careers",
+   s:"check", note:"Runs analyst & summer internship programmes (deadlines often early autumn). Verify."},
+  {t:"tier2", n:"PGIM", sc:"Early careers / internship", u:"https://www.pgim.com/careers",
+   s:"check", note:"Prudential (US) IM arm; internship & rotational programmes. Check live roles."},
+  {t:"tier2", n:"Lazard Asset Management", sc:"Analyst / internship", u:"https://www.lazard.com/careers/",
+   s:"check", note:"Analyst & internship routes across AM/advisory. Verify AM openings."},
+  {t:"tier2", n:"Nuveen (TIAA)", sc:"Early careers / internship", u:"https://www.nuveen.com/en-us/about-us/careers",
+   s:"check", note:"TIAA's investment manager; internship & rotational programmes (mostly US). Verify."},
+  {t:"tier2", n:"Aviva Investors", sc:"Graduate programme", u:"https://www.avivainvestors.com/en-gb/about/careers/",
+   s:"check", note:"Runs a structured graduate programme (London). Verify 2027 opening date."},
+  {t:"tier2", n:"Pictet AM", sc:"Graduate / internship", u:"https://www.group.pictet/careers",
+   s:"check", note:"Graduate programme & internships (Geneva/London). Check live listings."},
+  {t:"tier2", n:"Lombard Odier IM", sc:"Graduate / internship", u:"https://www.lombardodier.com/home/careers.html",
+   s:"check", note:"Internships & graduate routes (Geneva/London). Verify openings."},
+  {t:"tier2", n:"Vontobel", sc:"Graduate / internship", u:"https://www.vontobel.com/en/careers/",
+   s:"check", note:"Graduate & internship programmes (Zurich/London). Check current roles."},
+  {t:"tier2", n:"Candriam", sc:"Graduate academy / internship", u:"https://www.candriam.com/en/professional/about-us/careers/",
+   s:"check", note:"Candriam graduate academy & internships (Brussels/Paris/London). Verify."},
+  {t:"tier2", n:"Nordea AM", sc:"Graduate programme", u:"https://www.nordea.com/en/careers",
+   s:"check", note:"Nordea Graduate Programme (asset management track). Check window & locations."},
+  {t:"tier2", n:"First Sentier Investors", sc:"Early careers / internship", u:"https://www.firstsentierinvestors.com/uk/en/institutional/about-us/careers.html",
+   s:"check", note:"Global boutique group (parent of Stewart Investors). Occasional early-careers roles — verify."},
+  {t:"tier2", n:"TwentyFour AM", sc:"Boutique (fixed income)", u:"https://www.twentyfouram.com/careers",
+   s:"check", note:"Fixed-income boutique (Vontobel-owned); small team, opportunistic hiring — monitor / speculative."},
+
+  // ---------- ASSET OWNERS ----------
+  {t:"owner", n:"USS Investment Management", sc:"Graduate scheme", u:"https://www.uss.co.uk/careers",
+   s:"check", note:"UK pension (USS) in-house manager; runs a graduate scheme. Verify 2027 opening."},
+  {t:"owner", n:"CPP Investments", sc:"Analyst / internship programme", u:"https://www.cppinvestments.com/careers/students-and-new-grads/",
+   s:"check", note:"Canadian pension; structured Analyst & internship programmes (incl. London). Autumn deadlines — verify."},
+  {t:"owner", n:"CDPQ", sc:"Internship / new grad", u:"https://www.cdpq.com/en/careers",
+   s:"check", note:"Québec pension; internship & new-grad programmes (Montréal + intl offices). Check listings."},
+  {t:"owner", n:"Ontario Teachers' (OTPP)", sc:"Internship / new grad", u:"https://www.otpp.com/en-ca/about-us/careers/",
+   s:"check", note:"Structured internship & new-grad programmes (Toronto/London). Verify current window."},
+  {t:"owner", n:"PSP Investments", sc:"Internship / new grad", u:"https://www.investpsp.com/en/careers/",
+   s:"check", note:"Canadian public-sector pension; internship & grad routes. Check live roles."},
+];
+
+// ===================== NEW_OPENINGS FEED (last-24h London postings) =====================
+// Owned by the daily tracker Routine. Each morning it REPLACES this list with only
+// London job postings it found that were posted within the last 24 hours. Each item:
+//   {id, firm, role, loc, cat, url, found}
+//   cat ∈ "internship" | "im" | "equity-research" | "research"
+//   id  = stable slug of firm+role+loc (lowercase, hyphenated) so dismissals persist
+//   found = ISO datetime the posting was seen (used to enforce the 24h window client-side)
+// Do NOT hand-edit ids. User Add/Dismiss actions are stored separately (localStorage + db).
+const NEW_OPENINGS = [
+  {id:"barclays-equity-research-analyst-graduate-london", firm:"Barclays",
+   role:"Equity Research Analyst Graduate Programme (2027)", loc:"London", cat:"equity-research",
+   url:"https://search.jobs.barclays/graduates-research", found:"2026-09-16T07:12:00Z"},
+  {id:"rothschild-redburn-research-summer-intern-2027-london", firm:"Rothschild & Co Redburn",
+   role:"2027 UK Redburn Research Summer Intern Programme", loc:"London", cat:"research",
+   url:"https://www.rothschildandco.com/en/careers/students-and-graduates/opportunities/2027-uk-rothschild-co-redburn-research-summer-intern-programme-london/", found:"2026-09-16T07:12:00Z"},
+  {id:"point72-academy-investment-analyst-program-2027-london", firm:"Point72",
+   role:"Academy Investment Analyst Program for Upcoming Graduates (2027)", loc:"London", cat:"im",
+   url:"https://careers.point72.com/CSJobDetail?jobName=point72-academy-investment-analyst-program-for-upcoming-graduates-2027-uk-&jobCode=CPA-0014890&location=London", found:"2026-09-16T07:12:00Z"},
+  {id:"blackrock-2027-summer-internship-program-emea-london", firm:"BlackRock",
+   role:"2027 Summer Internship Program (EMEA)", loc:"London", cat:"internship",
+   url:"https://careers.blackrock.com/job/london/2027-summer-internship-program-emea/45831/97150826672", found:"2026-09-16T07:12:00Z"},
+  {id:"schroders-2027-public-markets-equities-internship-london", firm:"Schroders",
+   role:"2027 Public Markets Equities Internship Programme", loc:"London", cat:"internship",
+   url:"https://ekbq.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_2/job/1940", found:"2026-09-16T07:12:00Z"},
+  {id:"sig-equity-research-internship-summer-2027-london", firm:"SIG (Susquehanna)",
+   role:"Equity Research Internship — Summer 2027", loc:"London", cat:"equity-research",
+   url:"https://careers.sig.com/quantitative-trading-internships-co-ops/jobs/11085?lang=en-us", found:"2026-09-16T07:12:00Z"},
+  {id:"capital-group-cap-summer-associate-europe-2027-london", firm:"Capital Group",
+   role:"CAP Summer Associate — Europe (2027)", loc:"London", cat:"im",
+   url:"https://capgroup.wd1.myworkdayjobs.com/en-US/capitalgroupcareers/job/CAP-Summer-Associate---Europe--2027-_JR7201", found:"2026-09-16T07:12:00Z"},
+];
+// ISO timestamp of the most recent scan (the Routine updates this each run).
+const LAST_SCAN = "2026-09-16T07:12:00Z";
+// Only postings newer than this many hours appear in the banner.
+const WINDOW_HOURS = 24;
+// Live "Scan now" link — opens a LinkedIn Jobs search for London roles posted in the
+// last 24h (f_TPR=r86400). Lets you scan the sources yourself on demand; the automated
+// agent scan still runs every morning at 07:00.
+const SCAN_URL = "https://www.linkedin.com/jobs/search/?keywords=asset%20management%20OR%20equity%20research%20OR%20investment%20management%20OR%20research%20analyst&location=London%2C%20England%2C%20United%20Kingdom&f_TPR=r86400";
+// Rolling history of opening ids already surfaced in the banner, maintained by the
+// Routine. Each morning the scan skips any candidate whose id (or URL) is already here,
+// so the same posting is never shown on two different days. Capped to the most recent ~300.
+const SEEN_IDS = [
+  "barclays-equity-research-analyst-graduate-london",
+  "rothschild-redburn-research-summer-intern-2027-london",
+  "point72-academy-investment-analyst-program-2027-london",
+  "blackrock-2027-summer-internship-program-emea-london",
+  "schroders-2027-public-markets-equities-internship-london",
+  "sig-equity-research-internship-summer-2027-london",
+  "capital-group-cap-summer-associate-europe-2027-london",
+  "jpmam-2027-am-investments-summer-internship-london",
+  "sig-equity-research-analyst-graduate-london",
+  "fidelity-2027-equity-research-summer-internship-london",
+  "wellington-2027-summer-internship-london",
+];
+
+const CAT = {
+  internship:"Summer internship",
+  im:"Investment management",
+  "equity-research":"Equity research",
+  research:"Research (buy/sell-side)"
+};
+
+const GROUPS = [
+  {k:"tier1", label:"Tier 1"},
+  {k:"tier2", label:"Tier 2"},
+  {k:"owner", label:"Asset owners"},
+  {k:"new",   label:"Discovered — London openings"},
+];
+
+/* ---------- state ---------- */
+let openState = {dismissed:[], added:[]};   // banner actions, keyed by opening id
+
+function buildData(items, customRows){
+  const overrides = new Map((items||[]).map(x=>[x.n,x]));
+  const seedRows = SEED.map(d=>{
+    const o = overrides.get(d.n);
+    return {...d, s:normStatus(o?o.s:d.s), note:o?(o.note??d.note):d.note, updated:o?o.updated:null};
+  });
+  const custom = (customRows||[]).map(d=>({
+    n:d.n, t:"new", sc:d.sc||"", u:d.u||"#", s:normStatus(d.s||"open"), note:d.note||"", updated:d.updated||null
+  }));
+  return seedRows.concat(custom).map((d,i)=>({...d, id:i}));
+}
+// portable state blob (mirrors both localStorage and the cloud db doc)
+function currentStore(){
+  return {
+    v:1, saved:new Date().toISOString(),
+    items:data.map(d=>({n:d.n, s:d.s, note:d.note, updated:d.updated})),
+    customRows:data.filter(d=>d.t==="new").map(d=>({n:d.n, sc:d.sc, u:d.u, s:d.s, note:d.note, updated:d.updated})),
+    openState
+  };
+}
+function uniq(a){ return Array.from(new Set(a||[])); }
+function applyStore(store, mergeOpen){
+  const incoming = Object.assign({dismissed:[], added:[]}, (store&&store.openState)||{});
+  if(mergeOpen){
+    // dismissals/adds are monotonic — union so a stale snapshot can't un-dismiss
+    openState = {
+      dismissed: uniq([...(openState.dismissed||[]), ...incoming.dismissed]),
+      added:     uniq([...(openState.added||[]),     ...incoming.added])
+    };
+  }else{
+    openState = incoming;
+  }
+  data = buildData(store&&store.items, store&&store.customRows);
+}
+function load(){
+  let store = {};
+  try{ const raw = localStorage.getItem(STORE_KEY); if(raw) store = JSON.parse(raw); }catch(e){}
+  applyStore(store);
+  return data;
+}
+function save(){
+  const store = currentStore();
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){}
+  scheduleCloudWrite();   // write-through to the artifact db when available
+}
+let data;
+load();
+let filterStatus = "";     // stat-tile filter
+let filterTier = "";
+let q = "";
+
+/* ---------- render ---------- */
+const $ = s=>document.querySelector(s);
+const listEl = $("#list");
+const statsEl = $("#stats");
+const legendEl = $("#legend");
+
+function fmtDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString(undefined,{day:"numeric",month:"short"});
+}
+function fmtWhen(iso){
+  const t = Date.parse(iso); if(isNaN(t)) return "";
+  const diff = Date.now()-t;
+  if(diff < 0) return "just now";
+  const h = Math.floor(diff/3600000);
+  if(h < 1) return "in the last hour";
+  if(h < 24) return h+"h ago";
+  const d = Math.floor(h/24); return d===1 ? "yesterday" : d+"d ago";
+}
+
+function renderStats(){
+  const counts = {}; STATUSES.forEach(s=>counts[s.k]=0);
+  data.forEach(d=>{ if(counts[d.s]!=null) counts[d.s]++; });
+  const tiles = [
+    {k:"", label:"All", num:data.length},
+    ...STATUSES.map(s=>({k:s.k, label:s.label, num:counts[s.k]}))
+  ];
+  statsEl.innerHTML = tiles.map(t=>`
+    <button class="tile ${filterStatus===t.k?'active':''}" data-status="${t.k}" type="button">
+      <div class="num">${t.num}</div>
+      <div class="lbl">${t.k?`<span class="dot" style="background:var(--${t.k}-dot)"></span>`:""}${t.label}</div>
+    </button>`).join("");
+  statsEl.querySelectorAll(".tile").forEach(el=>{
+    el.onclick = ()=>{ filterStatus = filterStatus===el.dataset.status ? "" : el.dataset.status; renderAll(); };
+  });
+}
+
+function renderLegend(){
+  legendEl.innerHTML = STATUSES.map(s=>
+    `<span><span class="dot" style="background:var(--${s.k}-dot)"></span>${s.label}</span>`).join("");
+}
+
+function matches(d){
+  if(filterTier && d.t!==filterTier) return false;
+  if(filterStatus && d.s!==filterStatus) return false;
+  if(q){
+    const hay = (d.n+" "+d.sc+" "+d.note).toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+function rowHTML(d){
+  const st = S[d.s] || S.check;
+  return `
+  <div class="row" data-id="${d.id}">
+    <div class="name">
+      <a href="${d.u}" target="_blank" rel="noopener">${d.n} ↗</a>
+      <span class="scheme">${d.sc}</span>
+    </div>
+    <div>
+      <button class="badge ${st.cls}" data-act="cycle" title="Click to change status">
+        <span class="dot"></span>${st.label}
+      </button>
+    </div>
+    <div class="note">
+      <textarea data-act="note" rows="1" placeholder="Add a note, deadline, contact…">${(d.note||"").replace(/</g,"&lt;")}</textarea>
+    </div>
+    <div class="meta">
+      ${d.updated?`edited ${fmtDate(d.updated)}`:"&nbsp;"}
+      <br><a class="link" href="${d.u}" target="_blank" rel="noopener">Careers ↗</a>
+    </div>
+  </div>`;
+}
+
+function renderList(){
+  let html = "";
+  let anyShown = false;
+  GROUPS.forEach(g=>{
+    if(filterTier && filterTier!==g.k) return;
+    const rows = data.filter(d=>d.t===g.k && matches(d));
+    if(!rows.length) return;
+    anyShown = true;
+    html += `<section class="group">
+      <h2>${g.label} <span class="count">${rows.length}</span></h2>
+      <div class="panel">${rows.map(rowHTML).join("")}</div>
+    </section>`;
+  });
+  listEl.innerHTML = anyShown ? html : `<div class="panel"><div class="empty">No companies match your filters.</div></div>`;
+  listEl.querySelectorAll(".row").forEach(row=>{
+    const id = +row.dataset.id;
+    const d = data.find(x=>x.id===id);
+    row.querySelector('[data-act="cycle"]').onclick = ()=>{
+      const idx = STATUSES.findIndex(s=>s.k===d.s);
+      d.s = STATUSES[(idx+1)%STATUSES.length].k;
+      d.updated = new Date().toISOString();
+      save(); renderStats(); renderList();
+    };
+    const ta = row.querySelector('[data-act="note"]');
+    autoGrow(ta);
+    ta.addEventListener("input", ()=>autoGrow(ta));
+    ta.addEventListener("change", ()=>{
+      d.note = ta.value; d.updated = new Date().toISOString(); save();
+      const meta = row.querySelector(".meta");
+      meta.innerHTML = `edited ${fmtDate(d.updated)}<br><a class="link" href="${d.u}" target="_blank" rel="noopener">Careers ↗</a>`;
+    });
+  });
+}
+function autoGrow(ta){ ta.style.height="auto"; ta.style.height=Math.max(34,ta.scrollHeight)+"px"; }
+
+/* ---------- new-openings banner (last 24h only) ---------- */
+function withinWindow(o){
+  const t = Date.parse(o.found);
+  if(isNaN(t)) return true;                       // no timestamp → show
+  return (Date.now() - t) <= WINDOW_HOURS*3600000;
+}
+function visibleOpenings(){
+  // de-duplicate by id AND by URL so the same posting can never appear twice,
+  // then apply the 24h window and hide anything already added or dismissed.
+  const byId = new Map(); const seenUrl = new Set();
+  NEW_OPENINGS.forEach(o=>{
+    const u = (o.url||"").trim();
+    if(byId.has(o.id) || (u && seenUrl.has(u))) return;
+    byId.set(o.id, o); if(u) seenUrl.add(u);
+  });
+  return [...byId.values()].filter(o=>
+    withinWindow(o) &&
+    !openState.dismissed.includes(o.id) &&
+    !openState.added.includes(o.id));
+}
+function renderBanner(){
+  const el = document.getElementById("newBanner");
+  const items = visibleOpenings();
+  const scanTxt = LAST_SCAN ? `scanned ${fmtWhen(LAST_SCAN)}` : "";
+  const scanBtn = `<a class="nb-scanbtn" href="${SCAN_URL}" target="_blank" rel="noopener" title="Opens a LinkedIn Jobs search for London roles posted in the last 24 hours">🔎 Scan now ↗</a>`;
+  if(!items.length){
+    el.innerHTML = `
+      <div class="nb-head">
+        <div class="nb-title">🆕 New London postings <span class="nb-pill">last 24h</span></div>
+        <div class="nb-spacer"></div>
+        <span class="nb-scan">${scanTxt}</span>
+        ${scanBtn}
+      </div>
+      <div class="nb-empty">No new London postings in the last 24 hours. The 07:00 scan checks the web and LinkedIn every morning — or hit <b>Scan now</b> to search the sources yourself.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="nb-head">
+      <div class="nb-title">🆕 New London postings <span class="nb-pill">${items.length} · last 24h</span></div>
+      <div class="nb-spacer"></div>
+      <span class="nb-scan">${scanTxt}</span>
+      ${scanBtn}
+      <button class="mini" data-act="dismiss-all" type="button">Dismiss all</button>
+    </div>
+    <div class="nb-grid">
+      ${items.map(o=>`
+        <div class="nb-card" data-oid="${o.id}">
+          <div class="nb-cat cat-${o.cat}">${CAT[o.cat]||o.cat}</div>
+          <div class="nb-firm">${o.firm}</div>
+          <div class="nb-role">${o.role}</div>
+          <div class="nb-meta">📍 ${o.loc} · spotted ${fmtWhen(o.found)}</div>
+          <div class="nb-actions">
+            <a class="nb-link" href="${o.url}" target="_blank" rel="noopener">View ↗</a>
+            <button class="nb-add" data-act="add" type="button">+ Add to tracker</button>
+            <button class="nb-dismiss" data-act="dismiss" type="button">Dismiss</button>
+          </div>
+        </div>`).join("")}
+    </div>`;
+  el.querySelector('[data-act="dismiss-all"]').onclick = ()=>{
+    items.forEach(o=>{ if(!openState.dismissed.includes(o.id)) openState.dismissed.push(o.id); });
+    save(); renderBanner();
+  };
+  el.querySelectorAll(".nb-card").forEach(card=>{
+    const o = NEW_OPENINGS.find(x=>x.id===card.dataset.oid);
+    card.querySelector('[data-act="add"]').onclick = ()=>addOpening(o);
+    card.querySelector('[data-act="dismiss"]').onclick = ()=>{
+      if(!openState.dismissed.includes(o.id)) openState.dismissed.push(o.id);
+      save(); renderBanner();
+    };
+  });
+}
+function addOpening(o){
+  const fl = o.firm.toLowerCase();
+  const existing = data.find(d=>{
+    const dl = d.n.toLowerCase();
+    return dl===fl || dl.includes(fl) || fl.includes(dl);
+  });
+  const line = `[${CAT[o.cat]||o.cat}] ${o.role} — ${o.loc} (spotted ${fmtDate(o.found)||"today"}). ${o.url}`;
+  if(existing){
+    existing.s = "open";
+    existing.note = existing.note ? (line + "\n" + existing.note) : line;
+    existing.updated = new Date().toISOString();
+  }else{
+    data.push({id:data.length, n:o.firm, t:"new", sc:`${o.role} · ${o.loc}`,
+      u:o.url, s:"open", note:line, updated:new Date().toISOString()});
+  }
+  if(!openState.added.includes(o.id)) openState.added.push(o.id);
+  save(); renderAll();
+}
+
+function renderAll(){ renderBanner(); renderStats(); renderList(); }
+
+/* ---------- controls ---------- */
+$("#search").addEventListener("input", e=>{ q = e.target.value.trim().toLowerCase(); renderList(); });
+$("#tierFilter").addEventListener("change", e=>{ filterTier = e.target.value; renderAll(); });
+
+$("#exportBtn").onclick = ()=>{
+  const blob = new Blob([JSON.stringify({v:1, exported:new Date().toISOString(),
+    items:data.map(d=>({n:d.n, t:d.t, sc:d.sc, u:d.u, s:d.s, note:d.note, updated:d.updated})),
+    openState}, null, 2)],
+    {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "am-tracker-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+};
+$("#importBtn").onclick = ()=>$("#fileInput").click();
+$("#fileInput").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const parsed = JSON.parse(r.result);
+      const items = parsed.items||[];
+      const custom = items.filter(x=>x.t==="new");
+      data = buildData(items, custom);
+      if(parsed.openState) openState = Object.assign({dismissed:[],added:[]}, parsed.openState);
+      save(); renderAll();
+    }catch(err){ alert("Could not read that file — expected a JSON export from this tracker."); }
+  };
+  r.readAsText(f);
+  e.target.value = "";
+});
+$("#resetBtn").onclick = ()=>{
+  if(confirm("Reset all statuses and notes back to the seeded data? Your edits will be lost (on every synced device).")){
+    openState = {dismissed:[], added:[]};
+    data = buildData([], []);
+    save(); renderAll();
+  }
+};
+
+/* ---------- theme toggle ---------- */
+$("#themeBtn").onclick = ()=>{
+  const cur = document.documentElement.getAttribute("data-theme");
+  const isDark = cur ? cur==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", isDark?"light":"dark");
+  try{ localStorage.setItem(STORE_KEY+"-theme", isDark?"light":"dark"); }catch(e){}
+};
+try{ const th = localStorage.getItem(STORE_KEY+"-theme"); if(th) document.documentElement.setAttribute("data-theme", th); }catch(e){}
+
+/* ---------- cloud sync (artifact db) ----------
+   Published as an Artifact with the `db` capability, state is written through to
+   one db document and streamed back live, so edits follow the signed-in viewer
+   across devices/tabs. Falls back to localStorage when db is unavailable.
+   Robustness: while a local write is pending (`dirty`) we ignore incoming
+   snapshots so a race can't clobber a just-made change (e.g. a Dismiss), and
+   remote snapshots UNION the dismissed/added sets rather than replacing them. */
+let cloudDoc = null;
+let writeTimer = null, writing = false, pendingWrite = false, dirty = false, lastSavedStamp = null;
+
+function scheduleCloudWrite(){
+  if(!cloudDoc) return;
+  dirty = true;
+  clearTimeout(writeTimer);
+  writeTimer = setTimeout(flushCloudWrite, 350);   // coalesce bursts of edits
+}
+async function flushCloudWrite(){
+  if(!cloudDoc) return;
+  if(writing){ pendingWrite = true; return; }       // one write at a time per doc
+  writing = true;
+  const store = currentStore();
+  lastSavedStamp = store.saved;
+  try{ await cloudDoc.set(store); }
+  catch(e){ /* transient — localStorage keeps the durable copy */ }
+  finally{
+    writing = false;
+    if(pendingWrite){ pendingWrite = false; flushCloudWrite(); }
+    else dirty = false;
+  }
+}
+function setSynced(on){
+  const badge = document.getElementById("syncBadge");
+  if(badge) badge.hidden = !on;
+  ["exportBtn","importBtn"].forEach(id=>{ const b=document.getElementById(id); if(b) b.hidden = on; });
+}
+async function initCloud(){
+  if(!(window.claude && typeof window.claude.use === "function")) return; // raw file
+  let db;
+  try{ db = await window.claude.use("db"); }catch(e){ db = null; }
+  if(!db) return;                                    // not granted / unavailable
+  let doc;
+  try{ doc = db.doc("state/tracker"); }catch(e){ return; }
+  cloudDoc = doc;
+  setSynced(true);
+  doc.onSnapshot(snap=>{
+    if(dirty) return;                                            // local write pending — don't clobber
+    if(snap.metadata && snap.metadata.hasPendingWrites) return;  // our own optimistic echo
+    if(!snap.exists){ flushCloudWrite(); return; }               // first open: seed the cloud doc
+    const body = snap.data() || {};
+    if(body.saved && body.saved === lastSavedStamp) return;      // our own confirmed write
+    applyStore(body, true);                                      // remote change — union open-state
+    renderAll();
+  }, err=>{ /* terminal db error: keep working from localStorage */ });
+}
+
+/* ---------- go ---------- */
+renderLegend();
+renderAll();
+initCloud();
+</script>
+</body>
+</html>
