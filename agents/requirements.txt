@@ -1,0 +1,8 @@
+# Dependencies for the multi-agent paper-trading package (kept separate from the
+# Streamlit dashboard's requirements.txt so the dashboard deploy stays light).
+anthropic>=1.11.0
+pydantic>=2.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+yfinance>=1.5.0
+pytest>=8.0.0

@@ -17,3 +17,7 @@ weather_cache/
 .DS_Store
 .vscode/
 .idea/
+
+# Agent run transcripts and paper-trading state
+agents/runs/
+agents/state/
