@@ -79,11 +79,8 @@ div[data-testid="stMetric"] {
 }
 div[data-testid="stMetricLabel"] { font-weight: 600; opacity: 0.75; }
 
-/* Sidebar — uses Streamlit's own theme variable rather than a hard-coded
-   light color, so it stays correct whether the theme comes from the OS
-   or from someone manually toggling dark mode in Streamlit's own menu.
-   A hard-coded light background here previously left sidebar text
-   (colored by whichever theme is active) invisible in dark mode. */
+/* Sidebar: uses Streamlit's theme variable so text stays readable
+   in both light and dark mode. */
 section[data-testid="stSidebar"] {
     background: var(--secondary-background-color);
     border-right: 1px solid rgba(120,120,140,0.18);
@@ -118,9 +115,8 @@ page = st.sidebar.radio(
 st.sidebar.divider()
 
 # --- Robust yfinance access -------------------------------------------------
-# Yahoo Finance routinely rate-limits or returns transient errors. Without a
-# retry-and-catch layer, any single hiccup crashes the whole app with a raw
-# traceback. These helpers retry with exponential backoff and always fail soft.
+# Yahoo Finance often rate-limits or returns transient errors, so every fetch
+# goes through a retry with exponential backoff and fails soft (returns None).
 def _yf_retry(func, *args, retries=3, base_delay=1.0, **kwargs):
     """Call a yfinance function with retries and exponential backoff.
     Returns func(...) on success, or None if every attempt fails."""
@@ -169,8 +165,8 @@ def get_quarterly_financials(ticker_symbol):
 
 
 # --- API key resolution -----------------------------------------------------
-# Never hardcode secrets in a public repo. Resolve the VisualCrossing key from
-# Streamlit secrets (.streamlit/secrets.toml) or an environment variable.
+# The VisualCrossing key is read from Streamlit secrets
+# (.streamlit/secrets.toml) or an environment variable, never from the code.
 def _get_weather_api_key():
     try:
         if "VISUALCROSSING_API_KEY" in st.secrets:
@@ -195,11 +191,9 @@ def load_data(ticker_symbol, start, end):
 
 
 # --- Risk-free rate ---------------------------------------------------------
-# The risk-free leg of the Sharpe, CAPM and Fama-French calculations used to be
-# a hard-coded 2.5%. It is now sourced live from the 30-year US Treasury yield
-# (Yahoo ^TYX) so the models reflect the actual rate environment, with a fixed
-# fallback if the quote can't be fetched (network / rate-limit) so nothing
-# crashes.
+# Risk-free rate for the Sharpe, CAPM and factor calculations: the live
+# 30-year US Treasury yield (Yahoo ^TYX), with a fixed fallback if the quote
+# cannot be fetched.
 RISK_FREE_FALLBACK = 0.025  # annual decimal, used only when the live fetch fails
 
 
@@ -229,7 +223,7 @@ def get_risk_free_rate():
     rate = _fetch_risk_free_rate()
     return rate if rate is not None else RISK_FREE_FALLBACK
 
-# Enhanced weather data loading with caching and batch processing
+# Weather data (VisualCrossing API), cached to disk
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def test_weather_api():
     """Quick test to see if the VisualCrossing API is responding"""
@@ -251,7 +245,6 @@ def test_weather_api():
     except Exception as e:
         return False, f"Error: {str(e)[:50]}"
 
-# Enhanced weather data loading with persistent file caching
 def get_cache_key(region, data_type, start_date, end_date):
     """Generate a unique cache key for the parameters"""
     key_string = f"{region}_{data_type}_{start_date}_{end_date}"
@@ -809,9 +802,8 @@ if page == ":chart_with_upwards_trend: Stock Dashboard":
     
     from statsmodels.api import OLS, add_constant
 
-    # The Ken French data file changes at most once a month, so the network
-    # fetch + zip parse is cached for a day — without this it re-downloaded
-    # the full factor history on every widget interaction on this page.
+    # The Ken French factor file changes at most monthly, so the download
+    # is cached for a day rather than repeated on every interaction.
     @st.cache_data(ttl=86400)
     def _fetch_fama_french_factors_raw():
         ff_url = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_Factors_daily_CSV.zip"
@@ -1630,7 +1622,7 @@ elif page == ":bar_chart: Stock Correlation":
         
         return result
     
-    # Enhanced ML Functions from ML_Stock_Predictor
+    # ---- Feature engineering -------------------------------------------
     
     def calculate_technical_indicators(data, periods=[5, 10, 20, 50]):
         """Calculate comprehensive technical indicators"""
@@ -1929,13 +1921,11 @@ elif page == ":bar_chart: Stock Correlation":
                 - **Colombia**: Average of Bogotá, Medellín
                 """)
 
-    # Enhanced ML Functions from ML_Stock_Predictor
+    # ---- ML pipeline helpers -------------------------------------------
     
     def load_stock_data(ticker, start_date, end_date):
-        """Load stock data for the ML section, reusing the same cached,
-        retrying fetch as the rest of the app instead of a bare yfinance
-        call (which had no retry/backoff and would crash this page on any
-        transient Yahoo rate-limit)."""
+        """Load price data for the ML section via the shared cached,
+        retrying fetch used by the rest of the app."""
         return load_data(ticker, start_date, end_date)
     
     def create_correlation_features(main_data, correlation_data, window=60):
@@ -2037,16 +2027,12 @@ elif page == ":bar_chart: Stock Correlation":
         return feature_data, feature_columns
 
     def create_lstm_sequences(data, feature_columns, target_column, sequence_length=60, prediction_days=5):
-        """Create sequences for LSTM training.
+        """Create (sequence, label) pairs for LSTM training.
 
-        `target_column` already holds the prediction_days-ahead return for
-        each row (built upstream in prepare_ml_features), so the label for
-        a sequence ending at row i-1 is target[i-1] directly — indexing
-        target[i + prediction_days - 1] here would shift the label another
-        prediction_days-1 rows further into the future on top of that,
-        training the model against a horizon it was never told about.
-        Also returns the date index aligned to each sequence's label so
-        callers can join RF/LSTM predictions by date instead of position.
+        `target_column` already holds each row's forward return over the
+        prediction horizon, so a sequence ending at row i-1 is labelled with
+        target[i-1]. Also returns the date of each label so RF and LSTM
+        predictions can be joined by date rather than by position.
         """
         if not DEEP_LEARNING_AVAILABLE:
             return None, None, None, None, None
@@ -2476,41 +2462,23 @@ elif page == ":bar_chart: Stock Correlation":
         ### Advanced Stock Predictor with Multiple AI Models
         
         **Available Models:**
-        - **🌲 Random Forest:** Tree-based ensemble model excellent for feature importance analysis
-        - **🧠 LSTM Neural Network:** Deep learning model specialized for time series sequences  
-        - **🔄 Ensemble (RF + LSTM):** Combines both models for improved robustness
-        
-        **Enhanced Features:**
-        - **Advanced Lag Features:** 1-365 day historical patterns and momentum acceleration
-        - **Technical Indicators:** RSI, MACD, Bollinger Bands, moving averages
-        - **Volatility Regimes:** Short vs long-term volatility analysis
-        - **Trend Analysis:** Linear trend strength and consistency metrics
-        - **Market Regime Detection:** Bull/bear market indicators
-        - **Seasonal Patterns:** Day-of-week, monthly, quarterly, and yearly cycles
-        - **Correlation Features:** Dynamic correlations with market indices
-        
-        **LSTM Advantages:**
-        - **Sequential Learning:** Captures temporal dependencies in time series
-        - **Memory Cells:** Remembers long-term patterns better than traditional ML
-        - **Non-linear Modeling:** Complex pattern recognition capabilities
-        - **Automatic Feature Engineering:** Learns relevant patterns from sequences
-        
-        **Ensemble Benefits:**
-        - **Reduced Overfitting:** Combines different model strengths
-        - **Improved Stability:** More robust predictions across market conditions
-        - **Complementary Insights:** RF shows feature importance, LSTM captures sequences
-        
-        **Technical Implementation:**
-        - **Time Series Validation:** Proper walk-forward cross-validation
-        - **Feature Selection:** Intelligent selection of most predictive features
-        - **Early Stopping:** Prevents LSTM overfitting with validation monitoring
-        - **Scaling & Normalization:** Proper data preprocessing for neural networks
-        
-        **User Input Controls:**
-        - **Prediction Horizon:** 1-30 days ahead forecast target
-        - **Feature Lookback:** 30-200 days of historical data for feature engineering
-        - **Model Parameters:** Fine-tune Random Forest trees, depth, and LSTM architecture
-        - **Correlation Variables:** Select market factors to include as predictive features
+        - **🌲 Random Forest:** Tree-based ensemble; also reports which features it relies on
+        - **🧠 LSTM Neural Network:** Recurrent network fed with sequences of past feature values
+        - **🔄 Ensemble (RF + LSTM):** Equal-weight average of the two, matched by date
+
+        **Features:**
+        - **Technical Indicators:** Moving-average ratios, RSI, MACD, Bollinger band position, momentum, volatility and volume ratios
+        - **Correlation Features:** Rolling 60-day correlation with each selected market series, its 5-day change, and relative price ratios
+
+        **Target:** The stock's return over the chosen horizon (1 to 30 trading days).
+
+        **Validation:**
+        - **Chronological holdout:** The last 15% of the sample is never seen during development
+        - **Embargo (Random Forest):** A gap equal to the horizon separates training rows from validation and test rows, so overlapping return windows cannot leak
+        - **Walk-forward cross-validation:** 5 expanding folds, with feature selection redone inside each fold on its training rows only
+        - **Early stopping:** The LSTM stops training when validation loss stops improving
+
+        Short-horizon returns are close to unpredictable from public price data, so expect weak out-of-sample results. The value here is in the validation pipeline, not the forecast.
                         """)
     
     st.info(f"📊 **Using inputs from page header:** Ticker: {corr_ticker} | Date Range: {corr_start_date} to {corr_end_date} | Variables: {len(selected_vars)} selected")
@@ -2646,7 +2614,7 @@ elif page == ":bar_chart: Stock Correlation":
                     main_data, correlation_features, prediction_days
                 )
                 
-                # Debug: Check column structure and flatten if needed
+                # Flatten MultiIndex columns if present
                 if hasattr(main_data.columns, 'nlevels') and main_data.columns.nlevels > 1:
                     # Flatten MultiIndex columns
                     main_data.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in main_data.columns]
@@ -2705,9 +2673,8 @@ elif page == ":bar_chart: Stock Correlation":
 
                 if selected_model == "Random Forest" or "Ensemble" in selected_model:
                     # ---- Leakage-free feature selection --------------------------
-                    # The selector must never see rows it will later be scored on.
-                    # Previously it was fitted on all of X before the split, so the
-                    # chosen features already knew about the holdout period.
+                    # The feature selector only ever sees rows the model is
+                    # trained on, never rows it is later scored on.
                     X_all = np.array(ml_data[feature_columns].values, dtype=np.float64)
                     y_all = np.array(ml_data['target'].values, dtype=np.float64)
 
@@ -2732,11 +2699,9 @@ elif page == ":bar_chart: Stock Correlation":
                     st.info("Training Random Forest (features re-selected inside each fold)...")
 
                     for fold, (train_idx, val_idx) in enumerate(tscv.split(X_dev)):
-                        # drop the tail of train whose target window reaches into
-                        # val; skip the fold outright if that leaves too little to
-                        # train on (computed in one step so a future change to the
-                        # embargo size or the 100-row floor can't silently skip the
-                        # trim while still keeping the fold, reintroducing leakage)
+                        # Embargo: drop the last `embargo` training rows, whose
+                        # forward-return targets overlap the validation window.
+                        # Skip the fold if fewer than 100 training rows remain.
                         trimmed_len = len(train_idx) - embargo
                         if trimmed_len < 100:
                             continue
@@ -2745,7 +2710,7 @@ elif page == ":bar_chart: Stock Correlation":
                         X_tr, y_tr = X_dev[train_idx], y_dev[train_idx]
                         X_val, y_val = X_dev[val_idx], y_dev[val_idx]
 
-                        # the fix: selection sees this fold's training rows and nothing else
+                        # Select features on this fold's training rows only
                         fold_cols = select_features(X_tr, y_tr, n_features_to_select)
 
                         rf_fold = RandomForestRegressor(
@@ -2773,9 +2738,9 @@ elif page == ":bar_chart: Stock Correlation":
                     final_cols = select_features(X_dev, y_dev, n_features_to_select)
                     selected_features = [feature_columns[i] for i in final_cols]
 
-                    # Applying dev-chosen columns to the full matrix is not leakage:
-                    # the CHOICE of columns never saw the test rows. This is used
-                    # only for the live prediction row further down.
+                    # Columns were chosen on development data only, so applying
+                    # them to the full matrix (for the latest prediction row)
+                    # does not leak test information.
                     X_selected = X_all[:, final_cols]
 
                     rf_model = RandomForestRegressor(
@@ -3026,7 +2991,7 @@ elif page == ":bar_chart: Stock Correlation":
                 with col3:
                     st.metric("Predicted Change", f"{future_prediction:.2%}")
                 
-                # Enhanced confidence assessment with None checking
+                # Heuristic confidence label combining R2, CV R2 and directional accuracy
                 r2_safe = r2 if r2 is not None else 0
                 mse_safe = mse if mse is not None else 1
                 directional_safe = directional_accuracy if directional_accuracy is not None else 0.5
@@ -3226,7 +3191,6 @@ elif page == ":bar_chart: Stock Correlation":
                             
                             st.markdown("---")
                             
-                            # Enhanced visualizations
                             if all_monthly_data:
                                 # Monthly patterns - Multiple assets heatmap
                                 st.write("**📅 Monthly Correlation Patterns:**")
@@ -3436,8 +3400,7 @@ elif page == ":bar_chart: Stock Correlation":
         try:
             st.write(f"Testing if {granger_x} Granger-causes {granger_y} (lags 1 to {max_lag})")
             try:
-                # statsmodels 0.15 dropped the `verbose` kwarg (it used to
-                # print its own table to stdout; we build our own below).
+                # statsmodels 0.15 removed the `verbose` argument.
                 gc_results = grangercausalitytests(test_df, max_lag, verbose=False)
             except TypeError:
                 gc_results = grangercausalitytests(test_df, max_lag)
