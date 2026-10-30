@@ -1,34 +1,12 @@
-# Finance Dashboard Requirements
-# Core Streamlit and Data Science Libraries
-# 1.40+ required for the width='stretch' API (replaces deprecated use_container_width)
 streamlit>=1.40.0
 pandas>=2.0.0
 numpy>=1.24.0
-
-# Financial Data
-# yfinance 1.5+ is the current line (the .info endpoint is still rate-limited by
-# Yahoo regardless of version; the app retries and fails soft when it happens)
 yfinance>=1.5.0
-pandas-datareader>=0.10.0
-
-# Visualization
 plotly>=5.15.0
-
-# Machine Learning and Statistical Analysis
 scikit-learn>=1.3.0
 scipy>=1.11.0
 statsmodels>=0.14.0
-
-# Deep Learning (Optional - TensorFlow)
-# tensorflow>=2.13.0  # Commented out - not compatible with Python 3.13+
-# Your app gracefully handles missing TensorFlow with try/except
-
-# HTTP Requests and Data Processing
 requests>=2.31.0
 
-# Python Standard Library (already included with Python)
-# datetime, pickle, hashlib, os, zipfile, io, shutil, time, warnings
-
-# Additional utilities that might be needed
-openpyxl>=3.1.0
-xlsxwriter>=3.1.0
+# Optional: enables the LSTM model. The app runs without it.
+# tensorflow>=2.13.0
